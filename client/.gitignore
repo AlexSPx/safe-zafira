@@ -1,0 +1,81 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnp
+.pnp.js
+
+# React Native
+.expo/
+__generated__/
+
+# Bundle artifacts
+*.jsbundle
+*.bundle
+*.bundle.map
+
+# iOS
+ios/build/
+ios/Pods/
+ios/.symlinks/
+ios/DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcbkptlist
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+
+# Windows
+windows/.vs/
+windows/build/
+windows/AppPackages/
+windows/BundleArtifacts/
+windows/x86/
+windows/x64/
+windows/ARM/
+windows/ARM64/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# CodePush
+.code-push
+
+# BUCK
+buck-out/
+\.buckd/
+*.keystore
+!debug.keystore
+
+# Testing
+coverage/
+
+# Mac/OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.history/
