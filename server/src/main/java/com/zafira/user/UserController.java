@@ -1,9 +1,9 @@
-package com.zafira.client.model;
+package com.zafira.user;
 
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class ClientController
+public class UserController
 {
 
 }
