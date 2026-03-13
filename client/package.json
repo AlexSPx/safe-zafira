@@ -1,0 +1,33 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@tamagui/babel-plugin": "^2.0.0-rc.26",
+    "expo": "~55.0.6",
+    "expo-constants": "~55.0.7",
+    "expo-dev-client": "~55.0.16",
+    "expo-linking": "~55.0.7",
+    "expo-router": "~55.0.5",
+    "expo-status-bar": "~55.0.4",
+    "react": "19.2.4",
+    "react-native": "0.83.2",
+    "react-native-ble-plx": "^3.5.1",
+    "react-native-maps": "1.26.20",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "tamagui": "^2.0.0-rc.26"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "^55.0.11",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
