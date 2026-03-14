@@ -4,10 +4,11 @@ Safe Zafira — Telemetry Node (Main Entry Point)
 Boot sequence:
   1. BLE Pairing (one-time, skipped if already paired)
   2. Start OBD CAN Reader thread (shared data_queue)
-  3. Start Server Sender thread (reads queue, analyzes, POSTs JSON array)
+  3. Start Driver Attention Monitor thread (webcam-based)
+  4. Start Server Sender thread (reads queue, analyzes, POSTs JSON array)
 
 Usage:
-  python3 telemetry_node.py [-i can0] [--server-url http://...]
+  python3 telemetry_node.py [-i can0] [--server-url http://...] [--camera N] [--headless]
 """
 
 import time
@@ -23,6 +24,7 @@ from datetime import datetime
 from ble_pairing import run_ble_pairing
 from obd_scanner import can_reader_thread
 from gps_reader import gps_thread, gps_state  # Bug #5 fix: import GPS module
+from driver_attention import AttentionMonitor
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -165,6 +167,7 @@ def server_sender_thread(
     response_queue: queue.Queue,
     stop_event: threading.Event,
     server_url: str,
+    attention_monitor: "AttentionMonitor | None" = None,
 ):
     """
     Reads OBD packets from the shared data_queue, runs danger analysis,
@@ -235,6 +238,8 @@ def server_sender_thread(
                 "brake_level_percent":raw.get("brake_level_percent", 0.0),
                 "abs_activated":      raw.get("abs_activated", False),
                 "airbags_open":       raw.get("airbags_open", False),
+                # Driver attention
+                "driver_attention":   attention_monitor.state if attention_monitor else None,
                 # Diagnostics
                 "dtcs":               meta["dtcs"],
                 # Danger events produced by the analyzer
@@ -247,6 +252,15 @@ def server_sender_thread(
                 "gps_satellites":     gps["satellites"],
                 "gps_fix":            gps_state.has_fix,
             }
+
+            # --- Driver distraction alert ---
+            if attention_monitor and attention_monitor.state == "NOT_AWARE":
+                alerts.append({
+                    "type":      "DRIVER_DISTRACTED",
+                    "severity":  "WARNING",
+                    "timestamp": raw.get("timestamp"),
+                })
+                logger.warning("[Attention] DRIVER_DISTRACTED")
 
             batch.append(record)
             data_queue.task_done()
@@ -308,6 +322,8 @@ def main():
     parser.add_argument('-i', '--interface', default='can0', help='CAN interface (default: can0)')
     parser.add_argument('--server-url', default=DEFAULT_SERVER_URL, help='Server endpoint URL')
     parser.add_argument('--gps-port', default='/dev/serial0', help='GPS UART port (default: /dev/serial0)')
+    parser.add_argument('--camera', type=int, default=0, help='Camera index for attention monitor (default: 0)')
+    parser.add_argument('--headless', action='store_true', help='Run attention monitor without preview window')
     args = parser.parse_args()
 
     logger.info("=" * 50)
@@ -316,10 +332,29 @@ def main():
 
     # ── Step 1: BLE Pairing (one-time) ───────────────────────────
     logger.info("[BOOT] Step 1/4: BLE Pairing...")
+    logger.info("[BOOT] Step 1/4: BLE Pairing...")
     run_ble_pairing()
     logger.info("[BOOT] BLE Pairing complete ✓")
 
     # ── Steps 2-4: Start threads ──────────────────────────────────
+    # ── Step 2: Driver Attention Monitor ─────────────────────────
+    logger.info(f"[BOOT] Step 2/4: Starting attention monitor (camera={args.camera})...")
+    attention_monitor = None
+    try:
+        attention_monitor = AttentionMonitor(
+            camera_index=args.camera,
+            display=not args.headless,
+        )
+        attention_thread = threading.Thread(
+            target=attention_monitor.run,
+            daemon=True,
+        )
+        attention_thread.start()
+        logger.info("[BOOT] Attention monitor online ✓")
+    except Exception as e:
+        logger.warning(f"[BOOT] Attention monitor unavailable: {e} — continuing without it")
+
+    # ── Step 3 & 4: Start OBD + sender threads ───────────────────
     data_queue = queue.Queue(maxsize=50)
     command_queue = queue.Queue(maxsize=10)
     response_queue = queue.Queue(maxsize=10)
@@ -334,6 +369,7 @@ def main():
     )
 
     logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
+    logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
     reader = threading.Thread(
         target=can_reader_thread,
         args=(args.interface, data_queue, command_queue, response_queue, stop_event),
@@ -341,9 +377,10 @@ def main():
     )
 
     logger.info(f"[BOOT] Step 4/4: Starting server sender → {args.server_url}")
+    logger.info(f"[BOOT] Step 4/4: Starting server sender → {args.server_url}")
     sender = threading.Thread(
         target=server_sender_thread,
-        args=(data_queue, command_queue, response_queue, stop_event, args.server_url),
+        args=(data_queue, command_queue, response_queue, stop_event, args.server_url, attention_monitor),
         daemon=True,
     )
 

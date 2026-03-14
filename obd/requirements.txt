@@ -1,0 +1,9 @@
+# macOS / dev machine — includes the GUI window backend
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# ── Raspberry Pi 3B deployment ────────────────────────────────────────────────
+# Swap opencv-python for the headless variant to avoid pulling in Qt/GTK libs.
+# Run with --headless flag on the Pi.
+#
+#   pip install opencv-python-headless>=4.8.0 numpy>=1.24.0
