@@ -130,10 +130,12 @@ public class VehicleRepository {
                 ORDER BY ts DESC LIMIT 1
                 """;
 
-        return jdbcTemplate.queryForObject(sql, (rs, _) -> new LocationData(
-                rs.getDouble("latitude"),
-                rs.getDouble("longitude")
-        ), vehicleNo);
+		var results = jdbcTemplate.query(sql, (rs, _) -> new LocationData(
+				rs.getDouble("latitude"),
+				rs.getDouble("longitude")
+		), vehicleNo);
+
+        return results.isEmpty() ? null : results.getFirst();
     }
 
 	public List<Vehicle> getAllVehiclesByUserId(Long userId)

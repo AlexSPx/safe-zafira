@@ -69,6 +69,9 @@ public class VehicleController {
         }
 
         var location = service.getLastLocationDataForDevice(vehicleId);
+        if (location.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.OK).body(null);
+        }
 
         var maxSpeed = speedLimitService.getSpeedLimit(location.get().x(), location.get().y());
 
