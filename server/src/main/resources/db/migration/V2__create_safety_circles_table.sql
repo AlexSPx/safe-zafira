@@ -8,6 +8,15 @@ CREATE TABLE safety_permissions
     UNIQUE (owner_id, viewer_id)
 );
 
+CREATE TABLE vehicles
+(
+    id         SERIAL PRIMARY KEY,
+    vehicle_no VARCHAR(50) UNIQUE NOT NULL,
+    owner_id   BIGINT REFERENCES users (id),
+    make       VARCHAR(100),
+    model      VARCHAR(100)
+);
+
 CREATE TABLE vehicle_telemetry
 (
     id         SERIAL PRIMARY KEY,
