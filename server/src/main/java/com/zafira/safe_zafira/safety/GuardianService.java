@@ -1,6 +1,7 @@
 package com.zafira.safe_zafira.safety;
 
 import com.zafira.safe_zafira.model.Dangers;
+import com.zafira.safe_zafira.safety.model.SafetyPermissionDTO;
 import com.zafira.safe_zafira.user.UserRepository;
 import com.zafira.safe_zafira.user.model.User;
 import com.zafira.safe_zafira.model.VehicleData;
@@ -25,14 +26,14 @@ public class GuardianService
 
 	public List<FamilyMemberStatus> getFamilyDashboard(Long myId)
 	{
-		List<Map<String, Object>> permissions = safetyRepo.getPermissionsWhereIWatch(myId);
+		List<SafetyPermissionDTO> permissions = safetyRepo.getPermissionsWhereIWatch(myId);
 
 		List<FamilyMemberStatus> dashboard = new ArrayList<>();
 
-		for (Map<String, Object> row : permissions)
+		for (SafetyPermissionDTO row : permissions)
 		{
-			Long ownerId = (Long) row.get("owner_id");
-			String privacy = (String) row.get("privacy_level");
+			Long ownerId = row.targetUserId();
+			String privacy = row.privacyLevel();
 
 			Optional<User> userOpt = userRepo.findById(ownerId);
 			if (userOpt.isEmpty())

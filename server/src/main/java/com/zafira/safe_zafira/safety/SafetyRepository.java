@@ -1,34 +1,47 @@
 package com.zafira.safe_zafira.safety;
 
+import com.zafira.safe_zafira.safety.model.SafetyPermissionDTO;
 import lombok.AllArgsConstructor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
 @Repository
 @AllArgsConstructor
-public class SafetyRepository
-{
+public class SafetyRepository {
 
-	private final JdbcTemplate jdbc;
+	private final NamedParameterJdbcTemplate namedJdbc;
 
-	public List<Map<String, Object>> getPermissionsWhereIWatch(Long myUserId)
-	{
-		String sql = "SELECT owner_id, privacy_level FROM safety_permissions WHERE viewer_id = ? AND status = 'ACTIVE'";
-		return jdbc.queryForList(sql, myUserId);
+	public List<SafetyPermissionDTO> getPermissionsWhereIWatch(Long myUserId) {
+		String sql = "SELECT owner_id, privacy_level FROM safety_permissions WHERE viewer_id = :myUserId AND status = 'ACTIVE'";
+
+		return namedJdbc.query(sql, Map.of("myUserId", myUserId), (rs, rowNum) -> new SafetyPermissionDTO(
+				rs.getLong("owner_id"),
+				rs.getString("privacy_level")
+		));
 	}
 
-	public List<Map<String, Object>> getPermissionsWhereIAmWatched(Long myUserId)
-	{
-		String sql = "SELECT viewer_id, privacy_level FROM safety_permissions WHERE owner_id = ? AND status = 'ACTIVE'";
-		return jdbc.queryForList(sql, myUserId);
+	public List<SafetyPermissionDTO> getPermissionsWhereIAmWatched(Long myUserId) {
+		String sql = "SELECT viewer_id, privacy_level FROM safety_permissions WHERE owner_id = :myUserId AND status = 'ACTIVE'";
+
+		return namedJdbc.query(sql, Map.of("myUserId", myUserId), (rs, rowNum) -> new SafetyPermissionDTO(
+				rs.getLong("viewer_id"),
+				rs.getString("privacy_level")
+		));
 	}
 
 	public void insertPermission(Long ownerId, Long viewerId, String privacyLevel) {
-		String sql = "INSERT INTO safety_permissions (owner_id, viewer_id, privacy_level, status) VALUES (?, ?, ?, 'ACTIVE')";
-		jdbc.update(sql, ownerId, viewerId, privacyLevel);
+		String sql = "INSERT INTO safety_permissions (owner_id, viewer_id, privacy_level, status) " +
+					 "VALUES (:ownerId, :viewerId, :privacyLevel, 'ACTIVE')";
+
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("ownerId", ownerId)
+				.addValue("viewerId", viewerId)
+				.addValue("privacyLevel", privacyLevel);
+
+		namedJdbc.update(sql, params);
 	}
 }
