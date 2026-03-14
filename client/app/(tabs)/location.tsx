@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { SizableText, XStack, YStack, useTheme } from 'tamagui';
-import { Camera, MapView, PointAnnotation } from '@maplibre/maplibre-react-native';
+import {
+  Camera,
+  MapView,
+  PointAnnotation,
+} from '@maplibre/maplibre-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,14 +21,14 @@ export default function LocationScreen() {
   const theme = useTheme();
   const [isDarkMap, setIsDarkMap] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(13.5);
-  const [cameraCenter, setCameraCenter] = useState<[number, number]>(SOFIA_CENTER);
+  const [cameraCenter, setCameraCenter] =
+    useState<[number, number]>(SOFIA_CENTER);
   const isOverSpeed = CURRENT_SPEED_KMH > SPEED_LIMIT_KMH;
 
   const mapStyle = useMemo(
     () => (isDarkMap ? DARK_STYLE_URL : LIGHT_STYLE_URL),
     [isDarkMap],
   );
-
 
   return (
     <SafeAreaView
@@ -77,11 +81,7 @@ export default function LocationScreen() {
           </SizableText>
         </YStack>
 
-        <XStack
-          position="absolute"
-          left="$4"
-          bottom="$4"
-        >
+        <XStack position="absolute" left="$4" bottom="$4">
           <View
             style={[
               styles.speedCircle,
@@ -99,7 +99,7 @@ export default function LocationScreen() {
                 {
                   backgroundColor: isOverSpeed
                     ? '#B91C1C'
-                    : theme.primary?.val ?? '#1260FF',
+                    : (theme.primary?.val ?? '#1260FF'),
                 },
               ]}
             >
