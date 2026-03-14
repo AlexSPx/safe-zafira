@@ -5,6 +5,7 @@ import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.telemetry.speed.SpeedLimitService;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.safe_zafira.vehicle.model.Vehicle;
+import com.zafira.safe_zafira.vehicle.model.VehicleStatusSummary;
 import com.zafira.safe_zafira.vehicle.service.VehicleService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -91,6 +92,20 @@ public class VehicleController {
 	{
 		List<Vehicle> vehicles = service.getAllVehiclesDataForUser(memberId);
 		return ResponseEntity.ok(vehicles);
+	}
+
+	@GetMapping("/api/vehicles/statistics")
+	public ResponseEntity<List<VehicleStatusSummary>> getVehicleStatusForUser(
+			@AuthenticationPrincipal Long userId,
+			@RequestParam(defaultValue = "120") int minutes)
+	{
+		if (userId == null)
+		{
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
+		List<VehicleStatusSummary> status = service.getAggregatedVehicleStatus(userId, minutes);
+		return ResponseEntity.ok(status);
 	}
 
 	@ExceptionHandler(InvalidVehicleException.class)

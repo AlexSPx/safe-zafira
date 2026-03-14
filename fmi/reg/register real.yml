@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: https://server.g8row.xyz/api/users/register
+  url: http://192.168.88.3:4448/api/users/register
   headers:
     - name: Content-Type
       value: application/json

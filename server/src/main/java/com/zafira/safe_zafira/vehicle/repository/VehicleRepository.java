@@ -5,6 +5,7 @@ import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.model.TelemetryPoint;
 import com.zafira.safe_zafira.model.VehicleData;
 import com.zafira.safe_zafira.vehicle.model.Vehicle;
+import com.zafira.safe_zafira.vehicle.model.VehicleStatusSummary;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -152,6 +153,54 @@ public class VehicleRepository {
 				rs.getString("model"),
 				rs.getBigDecimal("batteryVoltage")
 		), userId);
+	}
+
+	public List<VehicleStatusSummary> getAggregatedStatusByUserId(Long userId, int minutes)
+	{
+		String sql = """
+				SELECT vt.vehicle_no,
+				       AVG(CAST(vt.speed AS DOUBLE PRECISION)) AS avg_speed,
+				       MAX(CAST(vt.speed AS DOUBLE PRECISION)) AS max_speed,
+				       AVG(CAST(vt.battery AS DOUBLE PRECISION)) AS avg_battery,
+				       AVG(CAST(vt.battery_car AS DOUBLE PRECISION)) AS avg_battery_car,
+				       AVG(CAST(vt.fuel AS DOUBLE PRECISION)) AS avg_fuel,
+				       (array_agg(CAST(vt.latitude AS DOUBLE PRECISION) ORDER BY vt.ts DESC))[1] AS last_lat,
+				       (array_agg(CAST(vt.longitude AS DOUBLE PRECISION) ORDER BY vt.ts DESC))[1] AS last_lon,
+				       array_agg(DISTINCT unnested_danger) FILTER (WHERE unnested_danger IS NOT NULL) AS all_dangers,
+				       array_agg(DISTINCT unnested_diag) FILTER (WHERE unnested_diag IS NOT NULL) AS all_diagnostics,
+				       COUNT(*)::int AS data_points
+				FROM vehicle_telemetry vt
+				JOIN vehicles v ON vt.vehicle_no = v.vehicle_no
+				JOIN user_vehicle uv ON v.id = uv.vehicle_id
+				LEFT JOIN LATERAL unnest(vt.dangers) AS unnested_danger ON TRUE
+				LEFT JOIN LATERAL unnest(vt.diagnostics) AS unnested_diag ON TRUE
+				WHERE uv.user_id = ?
+				  AND vt.ts >= NOW() - (? * INTERVAL '1 minute')
+				GROUP BY vt.vehicle_no
+				""";
+
+		return jdbcTemplate.query(sql, (rs, _) -> {
+			LocationData lastLoc = new LocationData(
+					rs.getDouble("last_lat"),
+					rs.getDouble("last_lon")
+			);
+
+			java.sql.Array dangersArr = rs.getArray("all_dangers");
+			java.sql.Array diagArr = rs.getArray("all_diagnostics");
+
+			return new VehicleStatusSummary(
+					rs.getString("vehicle_no"),
+					rs.getObject("avg_speed") != null ? rs.getDouble("avg_speed") : null,
+					rs.getObject("max_speed") != null ? rs.getDouble("max_speed") : null,
+					rs.getObject("avg_battery") != null ? rs.getDouble("avg_battery") : null,
+					rs.getObject("avg_battery_car") != null ? rs.getDouble("avg_battery_car") : null,
+					rs.getObject("avg_fuel") != null ? rs.getDouble("avg_fuel") : null,
+					lastLoc,
+					dangersArr != null ? List.of((String[]) dangersArr.getArray()) : List.of(),
+					diagArr != null ? List.of((String[]) diagArr.getArray()) : List.of(),
+					rs.getInt("data_points")
+			);
+		}, userId, minutes);
 	}
 
 	public VehicleData getLatestTelemetryByUserId(Long userId)
