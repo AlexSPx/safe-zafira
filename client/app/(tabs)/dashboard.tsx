@@ -8,9 +8,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  Wrench,
   Plus,
+  History,
 } from 'lucide-react-native';
+import { QuickStat } from '../../components/QuickStat';
 
 const pairedVehicles = [
   { id: '1', make: 'TOYOTA', model: 'Yaris' },
@@ -38,24 +39,38 @@ export default function Dashboard() {
     );
   };
 
-    return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
-            <YStack f={1} backgroundColor="$background">
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                    {/* Top Bar */}
-                    <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">
-                        <SizableText color="$textLight" fontSize={24} fontWeight="700" lineHeight={32}>
-                            Garage
-                        </SizableText>
-                        <TouchableOpacity onPress={handlePair}>
-                            <XStack backgroundColor="$primarySoft" px="$4" py="$2" borderRadius={20} ai="center" gap="$2">
-                                <Plus size={16} color={theme.textLight?.val} />
-                                <SizableText color="$textLight" fontSize={14} fontWeight="700">
-                                    Pair Device
-                                </SizableText>
-                            </XStack>
-                        </TouchableOpacity>
-                    </XStack>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
+      <YStack f={1} backgroundColor="$background">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">
+            <SizableText
+              color="$textLight"
+              fontSize={24}
+              fontWeight="700"
+              lineHeight={32}
+            >
+              Garage
+            </SizableText>
+            <TouchableOpacity onPress={handlePair}>
+              <XStack
+                backgroundColor="$buttonSecondary"
+                px="$4"
+                py="$2"
+                borderRadius={20}
+                ai="center"
+                gap="$2"
+              >
+                <Plus size={16} color={theme.textLight?.val} />
+                <SizableText color="$textLight" fontSize={14} fontWeight="700">
+                  Pair Device
+                </SizableText>
+              </XStack>
+            </TouchableOpacity>
+          </XStack>
 
           <XStack jc="space-between" ai="center" px="$4" py="$4">
             <TouchableOpacity onPress={prevVehicle}>
@@ -109,59 +124,17 @@ export default function Dashboard() {
             </SizableText>
 
             <XStack gap="$3">
-              <YStack
-                f={1}
-                backgroundColor="$surface"
-                borderColor="$borderColor"
-                borderWidth={1}
-                borderRadius={20}
-                p="$4"
-              >
-                <TouchableOpacity onPress={disconnectFromDevice}>
-                  <Square
-                    size={36}
-                    backgroundColor="$primarySoft"
-                    borderRadius={12}
-                    mb="$3"
-                    jc="center"
-                    ai="center"
-                  >
-                    <Settings size={20} color={theme.textLight?.val} />
-                  </Square>
-                </TouchableOpacity>
-                <SizableText color="$textMuted" fontSize={13} mb="$1">
-                  Service
-                </SizableText>
-                <SizableText color="$textLight" fontSize={16} fontWeight="600">
-                  In Progress
-                </SizableText>
-              </YStack>
+              <QuickStat
+                icon={<Settings size={18} color={theme.textLight?.val} />}
+                label="Service"
+                value="In Progress"
+              />
 
-              <YStack
-                f={1}
-                backgroundColor="$surface"
-                borderColor="$borderColor"
-                borderWidth={1}
-                borderRadius={20}
-                p="$4"
-              >
-                <Square
-                  size={36}
-                  backgroundColor="$primarySoft"
-                  borderRadius={12}
-                  mb="$3"
-                  jc="center"
-                  ai="center"
-                >
-                  <Wrench size={20} color={theme.textLight?.val} />
-                </Square>
-                <SizableText color="$textMuted" fontSize={13} mb="$1">
-                  Last updated
-                </SizableText>
-                <SizableText color="$textLight" fontSize={16} fontWeight="600">
-                  Today, 4:30 PM
-                </SizableText>
-              </YStack>
+              <QuickStat
+                icon={<History size={18} color={theme.textLight?.val} />}
+                label="Last updated"
+                value="Today, 4:30 PM"
+              />
             </XStack>
           </YStack>
         </ScrollView>

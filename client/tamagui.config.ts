@@ -1,5 +1,5 @@
 import { config } from '@tamagui/config/v3';
-import { createTamagui, createTokens } from 'tamagui';
+import { createTamagui } from 'tamagui';
 
 const customThemes = {
   ...config.themes,
@@ -17,8 +17,9 @@ const customThemes = {
     textLight: '#FFFFFF',
     textDark: '#000000',
     inputPlaceholderText: '#A09890',
-    button: '#F6E725',
-    buttonHover: '#E5D61A',
+    button: '#7e3486',
+    buttonHover: '#652a6b',
+    buttonSecondary: '#644178',
   },
   dark: {
     ...config.themes.dark,
@@ -34,9 +35,10 @@ const customThemes = {
     textLight: '#FFFFFF',
     textDark: '#000000',
     inputPlaceholderText: '#A09890',
-    button: '#F6E725',
-    buttonHover: '#E5D61A',
-  }
+    button: '#7e3486',
+    buttonHover: '#652a6b',
+    buttonSecondary: '#644178',
+  },
 };
 
 const tamaguiConfig = createTamagui({
@@ -47,7 +49,7 @@ const tamaguiConfig = createTamagui({
 export type AppConfig = typeof tamaguiConfig;
 
 declare module 'tamagui' {
-  interface TamaguiCustomConfig extends AppConfig { }
+  interface TamaguiCustomConfig extends AppConfig {}
 }
 
 export default tamaguiConfig;

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { YStack, XStack, Input, SizableText, Square, useTheme } from 'tamagui';
+import { YStack, XStack, Input, SizableText, useTheme } from 'tamagui';
 import { Link, Stack, router } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, LogIn, Mail, Lock } from 'lucide-react-native';
+import { LogIn, Mail, Lock } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -19,18 +19,10 @@ export default function LoginScreen() {
       <YStack flex={1} p="$4" backgroundColor="$background">
         <Stack.Screen options={{ title: 'Login', headerShown: false }} />
 
-        <XStack jc="space-between" ai="center" pb="$2">
-          <TouchableOpacity onPress={() => router.back()}>
-            <XStack w={40} h={40} jc="center" ai="center">
-              <ChevronLeft size={24} color={theme.textLight?.val} />
-            </XStack>
-          </TouchableOpacity>
-
+        <XStack jc="center" ai="center" pb="$2">
           <SizableText color="$textLight" fontSize={22} fontWeight="700">
             Login
           </SizableText>
-
-          <Square size={40} backgroundColor="transparent" />
         </XStack>
 
         <YStack
@@ -52,7 +44,7 @@ export default function LoginScreen() {
             WELCOME BACK
           </SizableText>
           <SizableText color="$textLight" fontSize={14} lineHeight={22}>
-            Sign in to access your garage and manage connected telemetry nodes.
+            Sign in to access your vehicle and manage connected telemetry nodes.
           </SizableText>
         </YStack>
 
@@ -120,8 +112,8 @@ export default function LoginScreen() {
               gap="$2"
               pressStyle={{ backgroundColor: '$buttonHover' }}
             >
-              <LogIn size={18} color={theme.textDark?.val} />
-              <SizableText color="$textDark" fontSize={15} fontWeight="700">
+              <LogIn size={18} color={theme.textLight?.val} />
+              <SizableText color="$textLight" fontSize={15} fontWeight="700">
                 Login
               </SizableText>
             </XStack>

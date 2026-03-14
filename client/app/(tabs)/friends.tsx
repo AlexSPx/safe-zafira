@@ -15,6 +15,7 @@ import { TouchableOpacity, Modal } from 'react-native';
 import { FriendRow } from '../../components/FriendRow';
 import { RowSeparator } from '../../components/RowSeparator';
 import { Plus, UserRoundX, X } from 'lucide-react-native';
+import { AddFriendModal } from '../../components/AddFriendModal';
 
 const initialFriends = [
   { id: '1', name: 'John Doe' },
@@ -66,7 +67,7 @@ export default function FriendsScreen() {
             </SizableText>
             <TouchableOpacity onPress={() => setIsModalVisible(true)}>
               <XStack
-                backgroundColor="$primarySoft"
+                backgroundColor="$buttonSecondary"
                 px="$4"
                 py="$2"
                 borderRadius={20}
@@ -146,66 +147,11 @@ export default function FriendsScreen() {
         </ScrollView>
       </YStack>
 
-      <Modal
+      <AddFriendModal
         visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <YStack
-          flex={1}
-          justifyContent="center"
-          alignItems="center"
-          backgroundColor="rgba(0,0,0,0.7)"
-          px="$4"
-        >
-          <YStack
-            backgroundColor="$surface"
-            borderColor="$borderColor"
-            borderWidth={1}
-            borderRadius={20}
-            padding="$5"
-            width="100%"
-            maxWidth={400}
-          >
-            <XStack jc="space-between" ai="center" mb="$4">
-              <SizableText color="$textLight" fontSize={20} fontWeight="700">
-                Add Friend
-              </SizableText>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Circle size={32} backgroundColor="$primarySoft">
-                  <X size={18} color={theme.textLight?.val} />
-                </Circle>
-              </TouchableOpacity>
-            </XStack>
-
-            <SizableText color="$textMuted" fontSize={14} mb="$3">
-              Enter your friend's username to send them a friend request.
-            </SizableText>
-
-            <Input
-              placeholder="Username"
-              value={newFriendUsername}
-              onChangeText={setNewFriendUsername}
-              autoCapitalize="none"
-              size="$4"
-              backgroundColor="$background"
-              borderColor="$borderColor"
-              color="$textLight"
-              mb="$4"
-            />
-
-            <Button
-              size="$4"
-              backgroundColor="$primarySoft"
-              onPress={handleAddFriend}
-              pressStyle={{ opacity: 0.8 }}
-            >
-              Add Friend
-            </Button>
-          </YStack>
-        </YStack>
-      </Modal>
+        onClose={() => setIsModalVisible(false)}
+        onAddFriend={handleAddFriend}
+      />
     </SafeAreaView>
   );
 }
