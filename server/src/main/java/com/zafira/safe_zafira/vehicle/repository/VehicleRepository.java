@@ -1,6 +1,6 @@
 package com.zafira.safe_zafira.vehicle.repository;
 
-import com.zafira.vehicle.model.VehicleData;
+import com.zafira.safe_zafira.model.VehicleData;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,7 +50,7 @@ public class VehicleRepository {
 
     public void enterData(VehicleData data) {
         String sql = """
-        INSERT INTO vehicle_data (vehicle_no, battery, dangers, diagnostics, isCrashed, location, speed, ts) 
+        INSERT INTO vehicle_data (vehicle_no, battery, dangers, diagnostics, isCrashed, location, speed, ts)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
 

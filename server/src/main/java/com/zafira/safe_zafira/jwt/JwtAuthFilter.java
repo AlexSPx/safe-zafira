@@ -1,4 +1,4 @@
-package com.zafira.sec.jwt;
+package com.zafira.safe_zafira.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

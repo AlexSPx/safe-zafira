@@ -1,7 +1,7 @@
 package com.zafira.safe_zafira.vehicle.controller;
 
+import com.zafira.safe_zafira.model.VehicleData;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
-import com.zafira.vehicle.model.VehicleData;
 import com.zafira.safe_zafira.vehicle.service.VehicleService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;

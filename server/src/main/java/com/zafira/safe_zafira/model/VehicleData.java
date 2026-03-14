@@ -1,5 +1,6 @@
-package com.zafira.vehicle.model;
+package com.zafira.safe_zafira.model;
 
+import javax.tools.Diagnostic;
 import java.util.List;
 import java.util.Optional;
 
