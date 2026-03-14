@@ -7,13 +7,12 @@ import {
   H4,
   ScrollView,
   Circle,
-  Card,
 } from 'tamagui';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QuickStat } from '../../components/QuickStat';
-import { DataRow } from '../../components/DataRow';
-import { RowSeparator } from '../../components/Separator';
+import { QuickStat } from '../components/QuickStat';
+import { DataRow } from '../components/DataRow';
+import { RowSeparator } from '../components/Separator';
 
 export default function StatisticsScreen() {
   return (
