@@ -61,7 +61,7 @@ echo "             but the serial port hardware is ENABLED via 'sudo raspi-confi
 
 # 4. Configure the CAN interface
 echo ""
-echo "[4/4] Configuring CAN Interface..."
+echo "[4/5] Configuring CAN Interface..."
 
 read -p "Do you want to setup a VIRTUAL CAN interface for testing? (y/n): " setup_vcan
 

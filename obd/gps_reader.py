@@ -124,10 +124,10 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
                     timestamp_utc=str(msg.timestamp) if msg.timestamp else None,
                 )
                 if fix_q > 0:
-                    logger.info(f"[GPS] Fix: {msg.latitude:.6f}, {msg.longitude:.6f} "
-                                f"alt={msg.altitude}m sats={msg.num_sats}")
+                    logger.debug(f"[GPS] Fix: {msg.latitude:.6f}, {msg.longitude:.6f} "
+                                 f"alt={msg.altitude}m sats={msg.num_sats}")
                 else:
-                    logger.info(f"[GPS] No fix yet (sats={msg.num_sats})")
+                    logger.debug(f"[GPS] No fix yet (sats={msg.num_sats})")
 
             # RMC — Speed over ground
             elif msg.sentence_type == 'RMC':
