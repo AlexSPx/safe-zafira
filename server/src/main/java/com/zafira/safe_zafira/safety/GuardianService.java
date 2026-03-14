@@ -1,6 +1,7 @@
 package com.zafira.safe_zafira.safety;
 
 import com.zafira.safe_zafira.model.Dangers;
+import com.zafira.safe_zafira.safety.model.GuardedMemberSummary;
 import com.zafira.safe_zafira.safety.model.SafetyPermissionDTO;
 import com.zafira.safe_zafira.user.UserRepository;
 import com.zafira.safe_zafira.user.model.User;
@@ -9,6 +10,7 @@ import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.safety.model.FamilyMemberStatus;
 import com.zafira.safe_zafira.vehicle.repository.VehicleRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.Optional;
 import java.util.ArrayList;
 
 @Service
+@Slf4j
 @AllArgsConstructor
 public class GuardianService
 {
@@ -24,47 +27,64 @@ public class GuardianService
 	private final UserRepository userRepo;
 	private final VehicleRepository vehicleRepo;
 
-	public List<FamilyMemberStatus> getFamilyDashboard(Long myId)
+	public List<GuardedMemberSummary> getFamilyDashboard(Long myId)
 	{
 		List<SafetyPermissionDTO> permissions = safetyRepo.getDriversWatchedByMe(myId);
-		List<FamilyMemberStatus> dashboard = new ArrayList<>();
+		List<GuardedMemberSummary> dashboard = new ArrayList<>();
 
 		for (SafetyPermissionDTO row : permissions)
 		{
-			Long observedId = row.targetUserId();
-			String privacy = row.privacyLevel();
-
-			Optional<User> userOpt = userRepo.findById(observedId);
+			Optional<User> userOpt = userRepo.findById(row.targetUserId());
 			if (userOpt.isEmpty())
 			{
+				log.error("No user found for permission");
 				continue;
 			}
 
 			User user = userOpt.get();
-			VehicleData rawData = vehicleRepo.getLatestTelemetryByUserId(observedId);
-
-			Long speed = null;
-			LocationData location = null;
-
-			if ("ALL".equals(privacy) || "LOCATION_AND_SPEED".equals(privacy))
-			{
-				speed = rawData.speed().orElse(null);
-				location = rawData.location().orElse(null);
-			}
-
-			dashboard.add(new FamilyMemberStatus(
-					observedId,
-					"Name Pending",
-					user.getEmail(),
-					rawData.dangers().contains(Dangers.CRASH_DETECTED),
-					location,
-					speed,
-					rawData.battery().map(Double::intValue).orElse(null),
-					privacy
+			dashboard.add(new GuardedMemberSummary(
+					user.getId(),
+					user.getUsername(),
+					user.getFamilyName()
 			));
 		}
 
 		return dashboard;
+	}
+
+	public FamilyMemberStatus getMemberStatus(Long myId, Long memberId)
+	{
+		SafetyPermissionDTO permission = safetyRepo.getDriversWatchedByMe(myId)
+												   .stream()
+												   .filter(p -> p.targetUserId().equals(memberId))
+												   .findFirst()
+												   .orElseThrow(() -> new IllegalArgumentException("You don't have permission to view this member"));
+
+		User user = userRepo.findById(memberId)
+							.orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+		String privacy = permission.privacyLevel();
+		VehicleData rawData = vehicleRepo.getLatestTelemetryByUserId(memberId);
+
+		Long speed = null;
+		LocationData location = null;
+
+		if ("ALL".equals(privacy) || "LOCATION_AND_SPEED".equals(privacy))
+		{
+			speed = rawData.speed().orElse(null);
+			location = rawData.location().orElse(null);
+		}
+
+		return new FamilyMemberStatus(
+				memberId,
+				user.getUsername(),
+				user.getEmail(),
+				rawData.dangers().contains(Dangers.CRASH_DETECTED),
+				location,
+				speed,
+				rawData.battery().map(Double::intValue).orElse(null),
+				privacy
+		);
 	}
 
 	public void addMutualGuardiansByEmail(Long myId, String guardianEmail, String privacyLevel)

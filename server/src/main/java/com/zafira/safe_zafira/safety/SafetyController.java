@@ -1,6 +1,7 @@
 package com.zafira.safe_zafira.safety;
 
 import com.zafira.safe_zafira.safety.model.FamilyMemberStatus;
+import com.zafira.safe_zafira.safety.model.GuardedMemberSummary;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +17,26 @@ public class SafetyController
 	private final GuardianService guardianService;
 
 	@GetMapping("/dashboard/{myId}")
-	public ResponseEntity<List<FamilyMemberStatus>> getDashboard(@PathVariable Long myId)
+	public ResponseEntity<List<GuardedMemberSummary>> getDashboard(@PathVariable Long myId)
 	{
-		List<FamilyMemberStatus> dashboard = guardianService.getFamilyDashboard(myId);
+		List<GuardedMemberSummary> dashboard = guardianService.getFamilyDashboard(myId);
 		return ResponseEntity.ok(dashboard);
+	}
+
+	@GetMapping("/dashboard/{myId}/member/{memberId}")
+	public ResponseEntity<FamilyMemberStatus> getMemberStatus(
+			@PathVariable Long myId,
+			@PathVariable Long memberId)
+	{
+		try
+		{
+			FamilyMemberStatus status = guardianService.getMemberStatus(myId, memberId);
+			return ResponseEntity.ok(status);
+		}
+		catch (IllegalArgumentException e)
+		{
+			return ResponseEntity.badRequest().build();
+		}
 	}
 
 	@PostMapping("/{myId}/add-by-email")
