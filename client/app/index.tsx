@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Button } from 'tamagui';
 
 export default function Index() {
@@ -8,10 +8,13 @@ export default function Index() {
     <View style={styles.container}>
       <Text>Welcome to Safe Zafira</Text>
       <Link href="/login" asChild>
-        <Button size="$4" theme="active">
+        <Button size="$4" theme="active" marginBottom="$4">
           Go to Login
         </Button>
       </Link>
+      <Button onPress={() => router.push('/dashboard')} size="$4" theme="active">
+        Go to Dashboard
+      </Button>
     </View>
   );
 }
