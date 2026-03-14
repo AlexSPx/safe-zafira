@@ -94,8 +94,8 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
             except pynmea2.ParseError:
                 continue  # Noisy line — ignore and move on
 
-            # $GPGGA — Fix & altitude data
-            if isinstance(msg, pynmea2.types.talker.GGA):
+            # GGA — Fix & altitude data
+            if msg.sentence_type == 'GGA':
                 # Bug #6 fix: use fix_quality integer instead of float comparison
                 fix_q = getattr(msg, "gps_qual", 0) or 0
                 try:
@@ -117,8 +117,8 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
                 else:
                     logger.debug(f"[GPS] No fix yet (sats={msg.num_sats})")
 
-            # $GPRMC — Speed over ground
-            elif isinstance(msg, pynmea2.types.talker.RMC):
+            # RMC — Speed over ground
+            elif msg.sentence_type == 'RMC':
                 spd = getattr(msg, "spd_over_grnd", None)
                 if spd is not None:
                     try:
