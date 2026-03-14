@@ -25,7 +25,6 @@ public class FamilyService
 
 	private final SafetyRepository safetyRepo;
 	private final UserRepository userRepo;
-	private final VehicleRepository vehicleRepo;
 
 	public List<GuardedMemberSummary> getFamilyDashboard(Long myId)
 	{
@@ -50,41 +49,6 @@ public class FamilyService
 		}
 
 		return dashboard;
-	}
-
-	public FamilyMemberStatus getMemberStatus(Long myId, Long memberId)
-	{
-		SafetyPermissionDTO permission = safetyRepo.getDriversWatchedByMe(myId)
-												   .stream()
-												   .filter(p -> p.targetUserId().equals(memberId))
-												   .findFirst()
-												   .orElseThrow(() -> new IllegalArgumentException("You don't have permission to view this member"));
-
-		User user = userRepo.findById(memberId)
-							.orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-		String privacy = permission.privacyLevel();
-		VehicleData rawData = vehicleRepo.getLatestTelemetryByUserId(memberId);
-
-		Long speed = null;
-		LocationData location = null;
-
-		if ("FULL_ACCESS".equals(privacy) || "LOCATION".equals(privacy))
-		{
-			speed = rawData.speed().orElse(null);
-			location = rawData.location().orElse(null);
-		}
-
-		return new FamilyMemberStatus(
-				memberId,
-				user.getUsername(),
-				user.getEmail(),
-				rawData.dangers().contains(Dangers.CRASH_DETECTED),
-				location,
-				speed,
-				rawData.battery().map(Double::intValue).orElse(null),
-				privacy
-		);
 	}
 
 	public void addMutualGuardiansByEmail(Long myId, String guardianEmail, String privacyLevel)

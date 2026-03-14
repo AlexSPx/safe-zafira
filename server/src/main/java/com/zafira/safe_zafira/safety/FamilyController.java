@@ -32,28 +32,6 @@ public class FamilyController
 		return ResponseEntity.ok(dashboard);
 	}
 
-	@GetMapping("/{myId}/member/{memberId}")
-	public ResponseEntity<FamilyMemberStatus> getMemberStatus(
-			@AuthenticationPrincipal Long myId,
-			@PathVariable Long memberId)
-	{
-		if (myId == null)
-		{
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-		}
-
-		try
-		{
-			FamilyMemberStatus status = familyService.getMemberStatus(myId, memberId);
-			return ResponseEntity.ok(status);
-		}
-		catch (IllegalArgumentException e)
-		{
-			log.error("Error fetching member status: " + e.getMessage());
-			return ResponseEntity.badRequest().build();
-		}
-	}
-
 	@PostMapping("/{myId}/add-by-email")
 	public ResponseEntity<String> addGuardian(
 			@AuthenticationPrincipal Long myId,
