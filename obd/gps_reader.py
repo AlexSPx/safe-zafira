@@ -83,7 +83,7 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
 
             line = raw.decode("ascii", errors="replace").strip()
 
-            if not line.startswith("$GP"):
+            if not line.startswith("$"):
                 continue
 
             try:
