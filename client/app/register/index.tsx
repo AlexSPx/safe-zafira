@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { YStack, XStack, Text, Input, Button, SizableText } from 'tamagui';
 import { Link } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -22,14 +23,15 @@ export default function RegisterScreen() {
   };
 
   return (
-    <YStack
-      flex={1}
-      justifyContent="center"
-      alignItems="center"
-      padding="$6"
-      theme="dark"
-      backgroundColor="$background"
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+      <YStack
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        padding="$6"
+        theme="dark"
+        backgroundColor="$background"
+      >
       <YStack width="100%" maxWidth={400} gap="$4">
         <SizableText
           size="$8"
@@ -109,6 +111,7 @@ export default function RegisterScreen() {
           </Link>
         </XStack>
       </YStack>
-    </YStack>
+      </YStack>
+    </SafeAreaView>
   );
 }

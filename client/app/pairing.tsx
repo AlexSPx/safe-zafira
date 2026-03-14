@@ -3,6 +3,7 @@ import { YStack, XStack, SizableText, Text, H1, H4, Button, Card, Separator, Cir
 import { FlatList } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PairingScreen() {
     const { requestPermissions, scanForDevices, allDevices, connectToDevice, connectedDevice, isScanning, isConnecting } = useBLEContext();
@@ -21,7 +22,8 @@ export default function PairingScreen() {
     };
 
     return (
-        <YStack f={1} backgroundColor="$background" p="$4">
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+            <YStack f={1} backgroundColor="$background" p="$4">
             <Stack.Screen options={{ title: 'Pair Telemetry Node', headerBackVisible: false }} />
 
             <H1 size="$7" mb="$2">Discover Devices</H1>
@@ -89,5 +91,6 @@ export default function PairingScreen() {
                 }}
             />
         </YStack>
+        </SafeAreaView>
     );
 }
