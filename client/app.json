@@ -36,6 +36,7 @@
     "plugins": [
       "expo-router",
       "react-native-bottom-tabs",
+      "@maplibre/maplibre-react-native",
       [
         "react-native-ble-plx",
         {
