@@ -20,7 +20,7 @@ import java.util.ArrayList;
 @Service
 @Slf4j
 @AllArgsConstructor
-public class GuardianService
+public class FamilyService
 {
 
 	private final SafetyRepository safetyRepo;
