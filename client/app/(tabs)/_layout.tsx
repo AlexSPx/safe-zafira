@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard } from 'lucide-react-native';
+import { LayoutDashboard, MapPin, Users, Wrench } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
@@ -7,7 +7,7 @@ export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const baseTabBarHeight = 64;
-  
+
   return (
     <Tabs
       screenOptions={{
@@ -32,7 +32,31 @@ export default function TabsLayout() {
         name="dashboard"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <LayoutDashboard color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="location"
+        options={{
+          title: 'Location',
+          tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="friends"
+        options={{
+          title: 'Friends',
+          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="diagnosis"
+        options={{
+          title: 'Diagnosis',
+          tabBarIcon: ({ color, size }) => <Wrench color={color} size={size} />,
         }}
       />
     </Tabs>
