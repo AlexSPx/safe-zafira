@@ -3,6 +3,7 @@ package com.zafira.safe_zafira.safety;
 import com.zafira.safe_zafira.safety.model.FamilyMemberStatus;
 import com.zafira.safe_zafira.safety.model.GuardedMemberSummary;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/guardian")
 @AllArgsConstructor
+@Slf4j
 public class SafetyController
 {
 
@@ -23,7 +25,7 @@ public class SafetyController
 		return ResponseEntity.ok(dashboard);
 	}
 
-	@GetMapping("/dashboard/{myId}/member/{memberId}")
+	@GetMapping("/{myId}/member/{memberId}")
 	public ResponseEntity<FamilyMemberStatus> getMemberStatus(
 			@PathVariable Long myId,
 			@PathVariable Long memberId)
@@ -35,6 +37,7 @@ public class SafetyController
 		}
 		catch (IllegalArgumentException e)
 		{
+			log.error("Error fetching member status: " + e.getMessage());
 			return ResponseEntity.badRequest().build();
 		}
 	}

@@ -69,7 +69,7 @@ public class GuardianService
 		Long speed = null;
 		LocationData location = null;
 
-		if ("ALL".equals(privacy) || "LOCATION_AND_SPEED".equals(privacy))
+		if ("FULL_ACCESS".equals(privacy) || "LOCATION".equals(privacy))
 		{
 			speed = rawData.speed().orElse(null);
 			location = rawData.location().orElse(null);
