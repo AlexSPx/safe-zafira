@@ -1,14 +1,12 @@
 import { SizableText, XStack } from 'tamagui';
 
-export const DataRow = ({
-  label,
-  value,
-  highlight = false,
-}: {
+interface DataRowProps {
   label: string;
   value: string;
   highlight?: boolean;
-}) => (
+}
+
+export const DataRow = ({ label, value, highlight = false }: DataRowProps) => (
   <XStack
     justifyContent="space-between"
     alignItems="center"

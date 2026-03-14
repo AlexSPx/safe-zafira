@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@tamagui/babel-plugin": "^2.0.0-rc.26",
     "@tamagui/config": "^2.0.0-rc.26",
     "@tamagui/font-inter": "^2.0.0-rc.26",

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { QuickStat } from '../components/QuickStat';
 import { DataRow } from '../components/DataRow';
 import { RowSeparator } from '../components/Separator';
+import { Icon } from '../components/Icon';
 
 export default function StatisticsScreen() {
   return (
@@ -39,7 +40,9 @@ export default function StatisticsScreen() {
               borderWidth={2}
               borderColor="$zafiraButton"
             >
-              <SizableText fontSize={40}>🚘</SizableText>
+              <SizableText fontSize={40}>
+                <Icon name="directions-car" size={32} />
+              </SizableText>
             </Circle>
             <YStack>
               <H2 color="white" m={0}>
@@ -52,12 +55,30 @@ export default function StatisticsScreen() {
           </XStack>
 
           <XStack gap="$3" marginBottom="$3">
-            <QuickStat icon="❤️" label="Health" value="100%" />
-            <QuickStat icon="🔋" label="Battery" value="12.4V" />
+            <QuickStat
+              icon={<Icon name="favorite" size={28} color="#ef4444" />}
+              label="Health"
+              value="100%"
+            />
+            <QuickStat
+              icon={
+                <Icon name="battery-charging-full" size={28} color="#4ade80" />
+              }
+              label="Battery"
+              value="12.4V"
+            />
           </XStack>
           <XStack gap="$3" marginBottom="$6">
-            <QuickStat icon="⛽" label="Fuel" value="32 MPG" />
-            <QuickStat icon="🌡️" label="Temp" value="Normal" />
+            <QuickStat
+              icon={<Icon name="local-gas-station" size={28} color="#facc15" />}
+              label="Fuel"
+              value="32 MPG"
+            />
+            <QuickStat
+              icon={<Icon name="thermostat" size={28} color="#60a5fa" />}
+              label="Temp"
+              value="Normal"
+            />
           </XStack>
 
           <H4 color="white" marginBottom="$3">

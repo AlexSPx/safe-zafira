@@ -1,14 +1,12 @@
 import { Card, SizableText } from 'tamagui';
 
-export const QuickStat = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
+interface QuickStatProps {
+  icon: React.ReactNode;
   label: string;
   value: string;
-}) => (
+}
+
+export const QuickStat = ({ icon, label, value }: QuickStatProps) => (
   <Card flex={1} backgroundColor="$zafiraCard" padding="$3" borderRadius="$4">
     <SizableText fontSize={28} mb="$2">
       {icon}
