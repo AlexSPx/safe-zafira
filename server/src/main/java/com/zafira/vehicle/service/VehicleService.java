@@ -1,5 +1,7 @@
 package com.zafira.vehicle.service;
 
+import com.zafira.vehicle.exception.InvalidVehicleException;
+import com.zafira.vehicle.model.VehicleData;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import org.springframework.stereotype.Service;
 
@@ -10,4 +12,7 @@ public class VehicleService {
 
     }
 
+    public void addVehicleData(String vehicleId, VehicleData data) throws InvalidVehicleException {
+
+    }
 }
