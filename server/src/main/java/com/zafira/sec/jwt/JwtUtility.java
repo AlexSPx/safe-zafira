@@ -1,5 +1,6 @@
 package com.zafira.sec.jwt;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,5 +30,17 @@ public class JwtUtility
 				   .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
 				   .signWith(key)
 				   .compact();
+	}
+
+	public Claims extractClaims(String token) {
+		return Jwts.parser()
+				.verifyWith(key)
+				.build()
+				.parseSignedClaims(token)
+				.getPayload();
+	}
+
+	public long extractUserId(String token) {
+		return extractClaims(token).get("userId", Long.class);
 	}
 }

@@ -4,8 +4,11 @@ import java.util.List;
 import java.util.Optional;
 
 public record VehicleData(
-        Optional<Double> speed,
+        Optional<Long> speed,
         Optional<LocationData> location,
-        List<Diagnostic> diagnostics
+        List<Diagnostic> diagnostics,
+        Optional<Boolean> isCrashed,
+        Optional<Integer> battery,
+        List<String> dangers
 ) {
 }

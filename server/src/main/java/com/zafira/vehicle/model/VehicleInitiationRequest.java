@@ -1,4 +1,4 @@
 package com.zafira.vehicle.model;
 
-public record VehicleInitiationRequest(long userId, String vehicleId) {
+public record VehicleInitiationRequest(String vehicleId, String vin, String model, String make, Double batteryVoltage) {
 }
