@@ -26,7 +26,7 @@ public class VehicleController {
     private final VehicleService service;
     private final SpeedLimitService speedLimitService;
 
-    @PostMapping("/vehicles")
+    @PostMapping("/api/vehicles")
     public ResponseEntity<Void> initiateDevice(@AuthenticationPrincipal Long userId, @RequestBody VehicleInitiationRequest body) {
         log.debug("Entered the controller");
 
@@ -38,10 +38,10 @@ public class VehicleController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PostMapping("/vehicles/data")
+    @PostMapping("/api/vehicles/data")
     public ResponseEntity<Void> receiveData(@AuthenticationPrincipal Long userId,
-                                              @RequestBody VehicleData body,
-                                              @RequestHeader Map<String, String> headers) {
+                                            @RequestBody VehicleData body,
+                                            @RequestHeader Map<String, String> headers) {
         String vehicleId = headers.get(VEHICLE_HEADER_NAME);
         if (userId == null || vehicleId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -54,25 +54,11 @@ public class VehicleController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    @GetMapping("/vehicle/speed-limit")
-    public ResponseEntity<Void> getSpeedLimit(@AuthenticationPrincipal Long userId,
-                                        @RequestBody VehicleData body,
-                                        @RequestHeader Map<String, String> headers) {
-        String vehicleId = headers.get(VEHICLE_HEADER_NAME);
-        if (userId == null || vehicleId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    @GetMapping("/api/vehicles/speed-limit")
+    public ResponseEntity<Integer> getSpeedLimit(@AuthenticationPrincipal Long userId,
+                                                 @RequestHeader Map<String, String> headers) {
 
-        log.debug("Getting data for vehicle [{}]", vehicleId);
-        log.debug("Vehicle [{}]", body);
-        service.addVehicleData(userId, vehicleId, body);
 
-        return ResponseEntity.status(HttpStatus.OK).build();
-    }
-
-    @ExceptionHandler(InvalidVehicleException.class)
-    public ResponseEntity<Integer> invalidVehicleExceptionHandler(@AuthenticationPrincipal Long userId,
-                                                     @RequestHeader Map<String, String> headers) {
         String vehicleId = headers.get(VEHICLE_HEADER_NAME);
         if (userId == null || vehicleId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -83,5 +69,10 @@ public class VehicleController {
         var maxSpeed = speedLimitService.getSpeedLimit(location.get().x(), location.get().y());
 
         return ResponseEntity.status(HttpStatus.OK).body(maxSpeed);
+    }
+
+    @ExceptionHandler(InvalidVehicleException.class)
+    public ResponseEntity<Void> invalidVehicleExceptionHandler() {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
 }
