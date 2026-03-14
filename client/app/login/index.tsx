@@ -1,83 +1,107 @@
 import { useState } from 'react';
-import { YStack, XStack, Text, Input, Button, SizableText } from 'tamagui';
-import { Link } from 'expo-router';
+import { YStack, XStack, Input, SizableText, Square, useTheme } from 'tamagui';
+import { Link, Stack, router } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChevronLeft, LogIn, Mail, Lock } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const theme = useTheme();
 
   const handleLogin = () => {
     console.log('Mock login request triggered with:', { email, password });
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
-      <YStack
-        flex={1}
-        justifyContent="center"
-        alignItems="center"
-        padding="$6"
-        theme="dark"
-        backgroundColor="$background"
-      >
-      <YStack width="100%" maxWidth={400} gap="$4">
-        <SizableText
-          size="$8"
-          fontWeight="bold"
-          textAlign="center"
-          marginBottom="$4"
-          color="$textLight"
-        >
-          Welcome Back
-        </SizableText>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
+      <YStack flex={1} p="$4" backgroundColor="$background">
+        <Stack.Screen options={{ title: 'Login', headerShown: false }} />
 
-        <YStack gap="$3">
-          <Input
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            color="$textDark"
-            placeholderTextColor="$inputPlaceholderText"
-            size="$4"
-            backgroundColor="$input"
-            borderColor="transparent"
-          />
-          <Input
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            color="$textDark"
-            placeholderTextColor="$inputPlaceholderText"
-            secureTextEntry
-            size="$4"
-            backgroundColor="$input"
-            borderColor="transparent"
-          />
+        <XStack jc="space-between" ai="center" pb="$2">
+          <TouchableOpacity onPress={() => router.back()}>
+            <XStack w={40} h={40} jc="center" ai="center">
+              <ChevronLeft size={24} color={theme.textLight?.val} />
+            </XStack>
+          </TouchableOpacity>
+
+          <SizableText color="$textLight" fontSize={22} fontWeight="700">
+            Login
+          </SizableText>
+
+          <Square size={40} backgroundColor="transparent" />
+        </XStack>
+
+        <YStack mt="$3" mb="$5" backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={20} p="$4" gap="$2">
+          <SizableText color="$textMuted" fontSize={13} fontWeight="600" letterSpacing={1}>
+            WELCOME BACK
+          </SizableText>
+          <SizableText color="$textLight" fontSize={14} lineHeight={22}>
+            Sign in to access your garage and manage connected telemetry nodes.
+          </SizableText>
         </YStack>
 
-        <Button
-          size="$4"
-          onPress={handleLogin}
-          marginTop="$4"
-          backgroundColor="$button"
-          pressStyle={{ backgroundColor: '$buttonHover' }}
-          hoverStyle={{ backgroundColor: '$buttonHover' }}
-        >
-          <SizableText whiteSpace="normal" numberOfLines={0}>Login</SizableText>
-        </Button>
+        <YStack width="100%" maxWidth={420} alignSelf="center" gap="$3">
+          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+            <XStack ai="center" gap="$2">
+              <Mail size={14} color={theme.textMuted?.val} />
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">EMAIL</SizableText>
+            </XStack>
+            <Input
+              unstyled
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              color="$textLight"
+            />
+          </YStack>
 
-        <XStack justifyContent="center" marginTop="$4" gap="$2">
-          <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight">Don't have an account?</SizableText>
-          <Link href="/register" asChild>
-            <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight" fontWeight="bold">
-              Register
-            </SizableText>
-          </Link>
-        </XStack>
-      </YStack>
+          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+            <XStack ai="center" gap="$2">
+              <Lock size={14} color={theme.textMuted?.val} />
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">PASSWORD</SizableText>
+            </XStack>
+            <Input
+              unstyled
+              placeholder="Enter password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              color="$textLight"
+            />
+          </YStack>
+
+          <TouchableOpacity onPress={handleLogin}>
+            <XStack
+              mt="$2"
+              backgroundColor="$button"
+              borderRadius={16}
+              py="$3"
+              px="$4"
+              ai="center"
+              jc="center"
+              gap="$2"
+              pressStyle={{ backgroundColor: '$buttonHover' }}
+            >
+              <LogIn size={18} color={theme.textDark?.val} />
+              <SizableText color="$textDark" fontSize={15} fontWeight="700">
+                Login
+              </SizableText>
+            </XStack>
+          </TouchableOpacity>
+
+          <XStack justifyContent="center" marginTop="$3" gap="$2">
+            <SizableText color="$textMuted">Don't have an account?</SizableText>
+            <Link href="/register" asChild>
+              <TouchableOpacity>
+                <SizableText color="$textLight" fontWeight="700">Register</SizableText>
+              </TouchableOpacity>
+            </Link>
+          </XStack>
+        </YStack>
       </YStack>
     </SafeAreaView>
   );
