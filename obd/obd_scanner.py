@@ -154,17 +154,25 @@ def trigger_beep(bus, config):
         print("\n[CAN Writer] No BEEP CAN message configured in car_config.json!")
         return
 
-    print(f"\n[CAN Writer] 🔊 SENDING BEEP COMMAND (ID: {beep_cfg.get('id')})! 🔊")
-    
     try:
-        arb_id = int(beep_cfg.get("id", "0x123"), 16)
-        data_hex = beep_cfg.get("data", ["0x00", "0x00", "0x00", "0x00", "0x00", "0x00", "0x00", "0x00"])
-        data_bytes = [int(x, 16) for x in data_hex]
+        # Some CAN tools require hex without '0x', so we ensure safe conversion
+        raw_id = beep_cfg.get("id", "0x123")
+        arb_id = int(raw_id, 16) if isinstance(raw_id, str) else raw_id
         
+        data_hex = beep_cfg.get("data", ["0x00"] * 8)
+        data_bytes = [int(x, 16) if isinstance(x, str) else x for x in data_hex]
+        
+        # Ensure we only have up to 8 bytes for standard CAN
+        data_bytes = data_bytes[:8]
+        
+        is_ext = beep_cfg.get("is_extended_id", False)
+
+        print(f"\n[CAN Writer] 🔊 SENDING BEEP COMMAND -> ID: 0x{arb_id:X} | Data: {[hex(b) for b in data_bytes]} | Ext: {is_ext}")
+
         beep_msg = can.Message(
             arbitration_id=arb_id,
             data=data_bytes,
-            is_extended_id=beep_cfg.get("is_extended_id", False)
+            is_extended_id=is_ext
         )
         
         # Car ECUs usually expect a continuous stream for a short duration to trigger chimes/horns
