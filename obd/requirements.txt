@@ -1,4 +1,11 @@
-# macOS / dev machine — includes the GUI window backend
+# Core runtime
+python-can>=4.4.0
+requests>=2.31.0
+urllib3<2
+pyserial>=3.5
+pynmea2>=1.19.0
+
+# Driver attention monitor dependencies
 opencv-python>=4.8.0
 numpy>=1.24.0
 
@@ -6,4 +13,4 @@ numpy>=1.24.0
 # Swap opencv-python for the headless variant to avoid pulling in Qt/GTK libs.
 # Run with --headless flag on the Pi.
 #
-#   pip install opencv-python-headless>=4.8.0 numpy>=1.24.0
+#   pip install python-can requests 'urllib3<2' pyserial pynmea2 opencv-python-headless>=4.8.0 numpy>=1.24.0

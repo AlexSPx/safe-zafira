@@ -32,6 +32,7 @@ import numpy as np
 import time
 import argparse
 import logging
+import threading
 from collections import deque
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -258,6 +259,10 @@ class AttentionMonitor:
     # ── Main loop ─────────────────────────────────────────────────────────────
 
     def run(self):
+        if self._display and threading.current_thread() is not threading.main_thread():
+            logger.warning("OpenCV preview disabled: GUI display must run on the main thread")
+            self._display = False
+
         logger.info("Driver attention monitor started (press 'q' to quit)")
 
         frame_interval  = 1.0 / FPS_TARGET
