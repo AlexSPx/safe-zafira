@@ -67,15 +67,16 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
     
     try:
         ser = serial.Serial(port=port, baudrate=baudrate, timeout=1)
-    except serial.SerialException as e:
-        logger.error(f"[GPS] Cannot open serial port {port}: {e}")
+    except Exception as e:
+        logger.error(f"[GPS] Cannot open serial port {port}. (Error: {e})")
+        logger.error("[GPS] Make sure you have 'pyserial' installed (pip install pyserial), NOT 'serial'.")
         return
     
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 raw = ser.readline()
-            except serial.SerialException as e:
+            except Exception as e:
                 logger.warning(f"[GPS] Serial read error: {e}")
                 time.sleep(1)
                 continue
