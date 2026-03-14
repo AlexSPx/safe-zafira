@@ -5,10 +5,12 @@ import com.zafira.user.exceptions.WrongPasswordException;
 import com.zafira.user.model.User;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Slf4j
+@Service
 public class UserLoginService
 {
 

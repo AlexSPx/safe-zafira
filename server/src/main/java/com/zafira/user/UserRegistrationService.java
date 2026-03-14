@@ -3,8 +3,10 @@ package com.zafira.user;
 import com.zafira.user.exceptions.UserAlreadyExistsException;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.stereotype.Service;
 
 @Slf4j
+@Service
 public class UserRegistrationService
 {
 	private final UserRepository userRepository;
