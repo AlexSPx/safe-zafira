@@ -99,6 +99,9 @@ class PassiveCANListener(can.Listener):
         self.airbags_cfg = msgs.get("airbags_open", {})
         self.brake_cfg = msgs.get("brake_status", {})
 
+        self.passive_speed = None
+        self.passive_mileage = None
+
     def on_message_received(self, msg):
         # Log every passive frame we care about
         if msg.arbitration_id in (self.brake_id, self.abs_id, self.airbags_id):
@@ -125,6 +128,18 @@ class PassiveCANListener(can.Listener):
             active_val = int(self.airbags_cfg.get("active_value", "0xFF"), 16)
             if len(msg.data) > idx:
                 self.airbags_open = (msg.data[idx] == active_val)
+
+        # 4. Check for passive Speed (Toyota common 0x0B4, bytes 5-6)
+        if msg.arbitration_id == 0x0B4:
+            if len(msg.data) >= 7:
+                # Speed is big-endian, scale by 0.01 to get KPH
+                self.passive_speed = ((msg.data[5] << 8) | msg.data[6]) * 0.01
+
+        # 5. Check for passive Mileage (Toyota ODO on 0x611, bytes 5-7)
+        if msg.arbitration_id == 0x611:
+            if len(msg.data) >= 8:
+                # Mileage in km is a 24-bit integer
+                self.passive_mileage = (msg.data[5] << 16) | (msg.data[6] << 8) | msg.data[7]
 
 
 def send_obd_request(bus, mode, pid=None, arb_id=None):
@@ -470,36 +485,17 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         except queue.Empty:
             pass
         
-        # ── 1. STAGGERED OBD POLLING ──────────────────────────────────────
-        # Speed is polled EVERY loop for minimal latency.
-        # Voltage and Toyota odo+fuel alternate on even/odd loops.
-        # This halves the requests per loop → speed updates ~2x faster.
+        # ── 1. OBD POLLING & PASSIVE DATA ──────────────────────────────────────
+        # Speed and Mileage are now read passively from the listener — instant!
+        current_speed = listener.passive_speed
+        last_mileage  = listener.passive_mileage
         
-        current_speed = request_and_read(
-            bus, MODE_CURRENT_DATA, PID_VEHICLE_SPEED, parse_speed
+        # Every loop: read voltage via standard OBD
+        voltage = request_and_read(
+            bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage, timeout_s=0.3
         )
-
-        if loop_counter % 2 == 0:
-            # Even loop: read voltage
-            voltage = request_and_read(
-                bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage
-            )
-            if voltage is not None:
-                last_voltage = voltage
-        else:
-            # Odd loop: read Toyota proprietary odo + fuel (single PID)
-            toyota_result = request_and_read(
-                bus, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL,
-                parse_toyota_odo_fuel,
-                arb_id=TOYOTA_PROP_REQUEST_ID,
-                resp_id_range=(TOYOTA_PROP_RESPONSE_ID, TOYOTA_PROP_RESPONSE_ID),
-                timeout_s=0.5,  # proprietary PIDs can be slower
-            )
-            if toyota_result:
-                if "odo_km" in toyota_result:
-                    last_mileage = toyota_result["odo_km"]
-                if "fuel_liters" in toyota_result:
-                    last_fuel_liters = toyota_result["fuel_liters"]
+        if voltage is not None:
+            last_voltage = voltage
 
         # Brake level from passive CAN listener (no polling needed)
         brake_level = listener.brake_level
@@ -525,14 +521,12 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             last_time = current_time
 
         # ── 3. CREATE DATA PACKET ────────────────────────────────────────
-        # Fuel: convert liters to percentage (Yaris tank ≈ 42L)
-        fuel_percent = None
-        if last_fuel_liters is not None:
-            fuel_percent = round((last_fuel_liters / FUEL_TANK_CAPACITY) * 100, 1)
+        # Fuel: Temporary hardcode to 25% (2/8 bars) until exact passive CAN ID is sniffed
+        fuel_percent = 25.0
 
         packet = {
             "timestamp": datetime.now().isoformat(),
-            "speed_kmh": current_speed if current_speed is not None else -1,
+            "speed_kmh": round(current_speed, 1) if current_speed is not None else -1,
             "fuel_percent": fuel_percent if fuel_percent is not None else -1,
             "battery_v": round(last_voltage, 2) if last_voltage is not None else -1,
             "mileage_km": round(last_mileage, 1) if last_mileage is not None else -1,
