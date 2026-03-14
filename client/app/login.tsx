@@ -33,8 +33,22 @@ export default function LoginScreen() {
           <Square size={40} backgroundColor="transparent" />
         </XStack>
 
-        <YStack mt="$3" mb="$5" backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={20} p="$4" gap="$2">
-          <SizableText color="$textMuted" fontSize={13} fontWeight="600" letterSpacing={1}>
+        <YStack
+          mt="$3"
+          mb="$5"
+          backgroundColor="$surface"
+          borderColor="$borderColor"
+          borderWidth={1}
+          borderRadius={20}
+          p="$4"
+          gap="$2"
+        >
+          <SizableText
+            color="$textMuted"
+            fontSize={13}
+            fontWeight="600"
+            letterSpacing={1}
+          >
             WELCOME BACK
           </SizableText>
           <SizableText color="$textLight" fontSize={14} lineHeight={22}>
@@ -43,10 +57,20 @@ export default function LoginScreen() {
         </YStack>
 
         <YStack width="100%" maxWidth={420} alignSelf="center" gap="$3">
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <Mail size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">EMAIL</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                EMAIL
+              </SizableText>
             </XStack>
             <Input
               unstyled
@@ -59,10 +83,20 @@ export default function LoginScreen() {
             />
           </YStack>
 
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <Lock size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">PASSWORD</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                PASSWORD
+              </SizableText>
             </XStack>
             <Input
               unstyled
@@ -97,7 +131,9 @@ export default function LoginScreen() {
             <SizableText color="$textMuted">Don't have an account?</SizableText>
             <Link href="/register" asChild>
               <TouchableOpacity>
-                <SizableText color="$textLight" fontWeight="700">Register</SizableText>
+                <SizableText color="$textLight" fontWeight="700">
+                  Register
+                </SizableText>
               </TouchableOpacity>
             </Link>
           </XStack>
