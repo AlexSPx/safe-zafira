@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
-import { YStack, XStack, SizableText, Text, H1, H4, Button, Card, Separator, Circle, Spinner } from 'tamagui';
-import { FlatList } from 'react-native';
+import { YStack, XStack, SizableText, Square, Spinner, useTheme } from 'tamagui';
+import { FlatList, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Bluetooth, ChevronLeft, CircleAlert, Radio, Search, Link2 } from 'lucide-react-native';
 
 export default function PairingScreen() {
     const { requestPermissions, scanForDevices, allDevices, connectToDevice, connectedDevice, isScanning, isConnecting } = useBLEContext();
+    const theme = useTheme();
 
     useEffect(() => {
         if (connectedDevice) {
@@ -22,75 +24,132 @@ export default function PairingScreen() {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
             <YStack f={1} backgroundColor="$background" p="$4">
-            <Stack.Screen options={{ title: 'Pair Telemetry Node', headerBackVisible: false }} />
+                <Stack.Screen options={{ title: 'Pair Telemetry Node', headerShown: false }} />
 
-            <H1 size="$7" mb="$2">Discover Devices</H1>
-            <SizableText   color="$textMuted" mb="$6">Make sure your Node is plugged in and the car's ignition is powered on.</SizableText>
+                <XStack jc="space-between" ai="center" pb="$2">
+                    <TouchableOpacity onPress={() => router.back()}>
+                        <XStack w={40} h={40} jc="center" ai="center">
+                            <ChevronLeft size={24} color={theme.textLight?.val} />
+                        </XStack>
+                    </TouchableOpacity>
 
-            <Button
-                size="$5"
-                theme={isScanning ? "alt1" : "active"}
-                onPress={handleStartScan}
-                mb="$4"
-                disabled={isScanning}
-                icon={isScanning ? () => <Spinner color="$color" /> : undefined}
-            >
-                {isScanning ? "Scanning..." : "Scan for nearby devices"}
-            </Button>
+                    <SizableText color="$textLight" fontSize={22} fontWeight="700">
+                        Pair Device
+                    </SizableText>
 
-            <Separator my="$4" />
+                    <Square size={40} backgroundColor="transparent" />
+                </XStack>
 
-            <FlatList
-                data={allDevices}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
-                    <YStack ai="center" jc="center" p="$4" mt="$4" gap="$3">
-                        {isScanning ? (
-                            <SizableText   color="$textMuted" textAlign="center">Searching for nodes nearby...</SizableText>
-                        ) : (
-                            <>
-                                <Circle size={64} backgroundColor="$surface" elevation={2}>
-                                    <SizableText   fontSize={32}>📡</SizableText>
-                                </Circle>
-                                <SizableText   color="$textMuted" textAlign="center">No nodes found yet. Press scan to begin.</SizableText>
-                            </>
-                        )}
-                    </YStack>
-                )}
-                renderItem={({ item }) => {
-                    return (
-                        <Card size="$4" borderColor="$primary" borderWidth={2} mb="$3"
-                            backgroundColor="$primarySoft"
-                            hoverStyle={{ scale: 0.98 }} pressStyle={{ scale: 0.98 }}
-                            onPress={() => !isConnecting && connectToDevice(item)}
-                        >
-                            <Card.Header>
-                                <XStack jc="space-between" ai="center" p="$4">
-                                    <YStack f={1}>
-                                        <XStack ai="center" gap="$2">
-                                            <SizableText   fontSize={16}>🚙</SizableText>
-                                            <H4 color="$color">{item.name || item.localName || 'Unknown Device'}</H4>
-                                        </XStack>
-                                        <SizableText   color="$textMuted">{item.id}</SizableText>
-                                    </YStack>
+                <YStack mt="$3" mb="$4" backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={20} p="$4" gap="$3">
+                    <XStack ai="center" gap="$2">
+                        <CircleAlert size={16} color={theme.textMuted?.val} />
+                        <SizableText color="$textMuted" fontSize={13} fontWeight="600" letterSpacing={1}>
+                            BEFORE YOU START
+                        </SizableText>
+                    </XStack>
+                    <SizableText color="$textLight" fontSize={14} lineHeight={22}>
+                        Make sure your telemetry node is plugged in and the ignition is powered on.
+                    </SizableText>
+                </YStack>
 
-                                    <Circle size={44} backgroundColor="$primary" elevation={1}>
+                <TouchableOpacity disabled={isScanning || isConnecting} onPress={handleStartScan}>
+                    <XStack
+                        mb="$4"
+                        backgroundColor={isScanning ? '$buttonHover' : '$button'}
+                        borderRadius={16}
+                        py="$3"
+                        px="$4"
+                        ai="center"
+                        jc="center"
+                        gap="$2"
+                        opacity={isConnecting ? 0.7 : 1}
+                    >
+                        {isScanning ? <Spinner color={theme.textDark?.val} /> : <Search size={18} color={theme.textDark?.val} />}
+                        <SizableText color="$textDark" fontSize={15} fontWeight="700">
+                            {isScanning ? 'Scanning for devices...' : 'Scan for nearby devices'}
+                        </SizableText>
+                    </XStack>
+                </TouchableOpacity>
+
+                <XStack ai="center" jc="space-between" mb="$3">
+                    <SizableText color="$textMuted" fontSize={12} fontWeight="600" letterSpacing={1.2}>
+                        AVAILABLE NODES
+                    </SizableText>
+                    <XStack ai="center" gap="$1.5">
+                        <Radio size={14} color={isScanning ? theme.button?.val : theme.textMuted?.val} />
+                        <SizableText color={isScanning ? '$button' : '$textMuted'} fontSize={12} fontWeight="600">
+                            {isScanning ? 'Scanning' : 'Idle'}
+                        </SizableText>
+                    </XStack>
+                </XStack>
+
+                <FlatList
+                    data={allDevices}
+                    keyExtractor={(item) => item.id}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 28 }}
+                    ListEmptyComponent={() => (
+                        <YStack ai="center" jc="center" p="$4" mt="$8" gap="$3">
+                            <Square size={64} borderRadius={16} backgroundColor="$surface" borderWidth={1} borderColor="$borderColor" jc="center" ai="center">
+                                <Bluetooth size={28} color={theme.textMuted?.val} />
+                            </Square>
+                            <SizableText color="$textLight" fontSize={16} fontWeight="600" textAlign="center">
+                                No devices yet
+                            </SizableText>
+                            <SizableText color="$textMuted" textAlign="center" maxWidth={280}>
+                                {isScanning ? 'Searching nearby nodes...' : 'Tap Scan for nearby devices to begin.'}
+                            </SizableText>
+                        </YStack>
+                    )}
+                    renderItem={({ item }) => {
+                        return (
+                            <TouchableOpacity disabled={isConnecting} onPress={() => connectToDevice(item)}>
+                                <XStack
+                                    mb="$3"
+                                    p="$4"
+                                    backgroundColor="$surface"
+                                    borderColor="$borderColor"
+                                    borderWidth={1}
+                                    borderRadius={20}
+                                    ai="center"
+                                    jc="space-between"
+                                    opacity={isConnecting ? 0.7 : 1}
+                                >
+                                    <XStack ai="center" gap="$3" f={1}>
+                                        <Square size={40} borderRadius={12} backgroundColor="$primarySoft" jc="center" ai="center">
+                                            <Bluetooth size={18} color={theme.textLight?.val} />
+                                        </Square>
+
+                                        <YStack f={1}>
+                                            <SizableText color="$textLight" fontSize={16} fontWeight="600" numberOfLines={1}>
+                                                {item.name || item.localName || 'Unknown Device'}
+                                            </SizableText>
+                                            <SizableText color="$textMuted" fontSize={12} numberOfLines={1}>
+                                                {item.id}
+                                            </SizableText>
+                                        </YStack>
+                                    </XStack>
+
+                                    <XStack ai="center" gap="$2" ml="$2">
                                         {isConnecting ? (
-                                            <Spinner color="white" />
+                                            <Spinner color={theme.button?.val} />
                                         ) : (
-                                            <SizableText   fontSize={20}>🔗</SizableText>
+                                            <>
+                                                <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                                                    Connect
+                                                </SizableText>
+                                                <Link2 size={16} color={theme.textMuted?.val} />
+                                            </>
                                         )}
-                                    </Circle>
+                                    </XStack>
                                 </XStack>
-                            </Card.Header>
-                        </Card>
-                    );
-                }}
-            />
-        </YStack>
+                            </TouchableOpacity>
+                        );
+                    }}
+                />
+            </YStack>
         </SafeAreaView>
     );
 }
