@@ -8,6 +8,9 @@ CREATE TABLE vehicle_telemetry
     latitude   DECIMAL,
     longitude  DECIMAL,
     speed      DECIMAL,
+    battery    DECIMAL,
+    dangers    VARCHAR[],
+    diagnostics    VARCHAR[],
     ts         timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (id, ts)
 );

@@ -49,6 +49,6 @@ public class VehicleService
 		}
 
 		log.debug("Entering telemetry data for vehicle [{}]", vehicleId);
-		vehicleRepository.enterData(data);
+		vehicleRepository.enterData(vehicleId, data);
 	}
 }

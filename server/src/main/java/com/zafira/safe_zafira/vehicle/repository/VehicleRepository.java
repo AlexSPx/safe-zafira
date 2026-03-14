@@ -31,7 +31,7 @@ public class VehicleRepository
 
 	public Long save(VehicleInitiationRequest vehicleData)
 	{
-		String sql = "INSERT INTO vehicle (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?) RETURNING id";
+		String sql = "INSERT INTO vehicles (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?) RETURNING id";
 
 		return jdbcTemplate.queryForObject(
 				sql,
@@ -55,22 +55,22 @@ public class VehicleRepository
 															  ));
 	}
 
-	public void enterData(VehicleData data)
+	public void enterData(String vehicleId, VehicleData data)
 	{
 		String sql = """
-				INSERT INTO vehicle_data (vehicle_no, battery, dangers, diagnostics, isCrashed, latitude, longitude, speed, ts)
+				INSERT INTO vehicle_telemetry (vehicle_no, battery, dangers, diagnostics, is_crashed, latitude, longitude, speed, ts)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		jdbcTemplate.update(
 				sql,
-				"FIXME_VEHICLE_ID",
+				vehicleId,
 				data.battery().orElse(null),
-				String.join(",", data.dangers()),
-				data.diagnostics().toString(),
+				data.dangers(),
+				data.diagnostics(),
 				data.isCrashed().orElse(false),
-				data.location().map(loc -> loc.x()).orElse(0.0),
-				data.location().map(loc -> loc.y()).orElse(0.0),
+				data.location().map(LocationData::x).orElse( null),
+				data.location().map(LocationData::y).orElse(null),
 				data.speed().orElse(null),
 				new Date()
 						   );
@@ -78,7 +78,7 @@ public class VehicleRepository
 
 	public VehicleData getLatestTelemetryByUserId(Long userId)
 	{
-		String sql = "SELECT * FROM vehicle_data vd ... WHERE uv.user_id = ? ORDER BY ts DESC LIMIT 1";
+		String sql = "SELECT * FROM vehicle_telemetry vd ... WHERE uv.user_id = ? ORDER BY ts DESC LIMIT 1";
 
 		return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
 			LocationData loc = new LocationData(
