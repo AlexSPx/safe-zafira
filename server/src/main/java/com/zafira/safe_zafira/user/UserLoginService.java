@@ -21,7 +21,7 @@ public class UserLoginService
 		this.userRepository = userRepository;
 	}
 
-	public long loginUser(String email, String plainTextPassword) throws UserDoesntExistException, WrongPasswordException
+	public User loginUser(String email, String plainTextPassword) throws UserDoesntExistException, WrongPasswordException
 	{
 		log.info("Attempting to log in user: {}", email);
 
@@ -44,6 +44,6 @@ public class UserLoginService
 		}
 
 		log.info("Successfully logged in user: {}", email);
-		return user.getId();
+		return user;
 	}
 }

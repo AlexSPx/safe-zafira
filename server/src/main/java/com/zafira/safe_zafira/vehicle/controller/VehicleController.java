@@ -1,7 +1,6 @@
 package com.zafira.safe_zafira.vehicle.controller;
 
 import com.zafira.safe_zafira.model.VehicleData;
-import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.telemetry.speed.SpeedLimitService;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.safe_zafira.vehicle.service.VehicleService;
@@ -83,8 +82,17 @@ public class VehicleController {
         return ResponseEntity.status(HttpStatus.OK).body(service.getCurrentClientVehicleData(vehicleId).orElse(null));
     }
 
-    @ExceptionHandler(InvalidVehicleException.class)
-    public ResponseEntity<Void> invalidVehicleExceptionHandler() {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-    }
+	@GetMapping("/api/vehicles/family/{memberId}")
+	public ResponseEntity<List<Vehicle>> getVehiclesForFamilyMember(@AuthenticationPrincipal Long userId,
+																	@PathVariable Long memberId)
+	{
+		List<Vehicle> vehicles = service.getAllVehiclesDataForUser(memberId);
+		return ResponseEntity.ok(vehicles);
+	}
+
+	@ExceptionHandler(InvalidVehicleException.class)
+	public ResponseEntity<Void> invalidVehicleExceptionHandler()
+	{
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+	}
 }
