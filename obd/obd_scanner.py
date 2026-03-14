@@ -1,6 +1,5 @@
 import can
 import time
-import struct
 import threading
 import queue
 import json
@@ -185,7 +184,7 @@ def parse_dtc_response(bus):
         
         # Mode 3 response is Mode + 0x40 = 0x43
         if pci == 0:  # Single frame
-            if data[1] == 0x43:
+            if len(data) >= 3 and data[1] == 0x43:
                 num_dtcs = data[2]
                 dtc_bytes.extend(data[3:3 + (num_dtcs * 2)])
                 break
@@ -239,10 +238,10 @@ def parse_vin_response(bus):
         pci = data[0] >> 4
         
         if pci == 0:  # Single Frame (Unusual for VIN, but possible if short)
-            if data[1] == 0x49 and data[2] == PID_VIN:
+            if len(data) >= 5 and data[1] == 0x49 and data[2] == PID_VIN:
                 length = data[0] & 0x0F
-                # data[3] is the number of reporting items, data[4:] is the VIN
-                vin_bytes.extend(data[4:1+length])
+                # data[3] is the number of data items, data[4:] is the VIN payload
+                vin_bytes.extend(data[4:length + 1])
                 break
                 
         elif pci == 1: # First Frame
@@ -327,9 +326,12 @@ def request_and_read(bus, mode, pid, parser_func, arb_id=None, resp_id_range=Non
         msg = bus.recv(0.1)
         if msg and resp_min <= msg.arbitration_id <= resp_max:
             raw_logger.debug(f"PID RX  ID=0x{msg.arbitration_id:03X} DATA={msg.data.hex(' ')} (expecting mode=0x{mode:02X} pid=0x{pid:02X})")
-            # Check if this is the response to our PID
-            if len(msg.data) >= 3 and msg.data[1] == (mode + 0x40) and msg.data[2] == pid:
-                result = parser_func(msg.data)
+            # Let the parser itself validate the response bytes using find_data_offset.
+            # We do NOT check msg.data[1] == (mode + 0x40) here because:
+            # (a) the response byte position can vary, and
+            # (b) mode + 0x40 may not be in data[1] for proprietary Toyota frames.
+            result = parser_func(msg.data)
+            if result is not None:
                 parsed_logger.debug(f"PID 0x{pid:02X} parsed -> {result}")
                 return result
     parsed_logger.debug(f"PID 0x{pid:02X} (mode 0x{mode:02X}) -> no response (timeout)")
@@ -501,13 +503,15 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         # Log parsed telemetry to file
         parsed_logger.info(json.dumps(packet))
         
-        # 4. Send to Consumer
+        # 4. Send to Consumer — drop oldest if full to keep data fresh
         try:
-            if data_queue.full():
-                data_queue.get_nowait()
             data_queue.put_nowait(packet)
         except queue.Full:
-            pass
+            try:
+                data_queue.get_nowait()  # discard oldest
+                data_queue.put_nowait(packet)
+            except queue.Empty:
+                pass
 
         # 5. Enforce ~500ms loop
         elapsed = time.time() - loop_start_time
@@ -575,6 +579,12 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
             print(f"\n======================================")
             print(f"[Consumer] RECEIVED VIN: {vin}")
             print(f"======================================\n")
+        else:
+            # Put non-VIN responses back so the main loop can handle them
+            try:
+                response_queue.put_nowait(response)
+            except queue.Full:
+                pass
         response_queue.task_done()
     except queue.Empty:
         print("\n[Consumer] [!] Timed out waiting for VIN response!")
@@ -641,11 +651,7 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
         except queue.Empty:
             continue
     
-    # Cleanup listener if it was created
-    try:
-        listener.stop()
-    except:
-        pass
+    # kb_thread is a daemon thread so it will exit automatically when main exits
 
 def main(interface='can0'):
     # Shared Queues for bi-directional communication

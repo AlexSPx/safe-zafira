@@ -1,0 +1,169 @@
+"""
+gps_reader.py — GY-NEO6MV2 / NEO-6M GPS Module Reader.
+
+Can be used two ways:
+  1. Standalone:  python3 gps_reader.py [-p /dev/serial0] [-b 9600]
+  2. As a module: import gps_reader and call gps_thread() in a daemon thread.
+     Read the latest fix from the shared GpsState instance at any time.
+"""
+
+import time
+import threading
+import logging
+import serial
+import pynmea2
+import argparse
+
+logger = logging.getLogger(__name__)
+
+
+class GpsState:
+    """Thread-safe container for the latest GPS fix data."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._data = {
+            "latitude":  None,
+            "longitude": None,
+            "altitude_m": None,
+            "speed_knots": None,
+            "satellites": None,
+            "fix_quality": 0,   # 0 = no fix, 1 = GPS, 2 = DGPS
+            "timestamp_utc": None,
+        }
+
+    def update(self, **kwargs):
+        with self._lock:
+            self._data.update(kwargs)
+
+    def snapshot(self) -> dict:
+        """Returns a copy of the current GPS state (safe to read from any thread)."""
+        with self._lock:
+            return dict(self._data)
+
+    @property
+    def has_fix(self) -> bool:
+        with self._lock:
+            return (self._data["fix_quality"] or 0) > 0 and \
+                   self._data["latitude"] is not None
+
+
+# Module-level shared state — telemetry_node.py imports this directly.
+gps_state = GpsState()
+
+
+def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
+               stop_event: threading.Event = None):
+    """
+    Background thread that continuously reads NMEA sentences and updates
+    the shared `gps_state` object.  Designed to run as a daemon thread.
+
+    Args:
+        port:       Serial port path (e.g. /dev/serial0, /dev/ttyAMA0).
+        baudrate:   Baud rate; NEO-6M default is 9600.
+        stop_event: Optional threading.Event to signal graceful shutdown.
+    """
+    logger.info(f"[GPS] Starting on {port} @ {baudrate} baud.")
+    
+    try:
+        ser = serial.Serial(port=port, baudrate=baudrate, timeout=1)
+    except serial.SerialException as e:
+        logger.error(f"[GPS] Cannot open serial port {port}: {e}")
+        return
+    
+    try:
+        while stop_event is None or not stop_event.is_set():
+            try:
+                raw = ser.readline()
+            except serial.SerialException as e:
+                logger.warning(f"[GPS] Serial read error: {e}")
+                time.sleep(1)
+                continue
+
+            line = raw.decode("ascii", errors="replace").strip()
+
+            if not line.startswith("$GP"):
+                continue
+
+            try:
+                msg = pynmea2.parse(line)
+            except pynmea2.ParseError:
+                continue  # Noisy line — ignore and move on
+
+            # $GPGGA — Fix & altitude data
+            if isinstance(msg, pynmea2.types.talker.GGA):
+                # Bug #6 fix: use fix_quality integer instead of float comparison
+                fix_q = getattr(msg, "gps_qual", 0) or 0
+                try:
+                    fix_q = int(fix_q)
+                except (TypeError, ValueError):
+                    fix_q = 0
+
+                gps_state.update(
+                    latitude=msg.latitude if fix_q > 0 else None,
+                    longitude=msg.longitude if fix_q > 0 else None,
+                    altitude_m=float(msg.altitude) if msg.altitude else None,
+                    satellites=msg.num_sats,
+                    fix_quality=fix_q,
+                    timestamp_utc=str(msg.timestamp) if msg.timestamp else None,
+                )
+                if fix_q > 0:
+                    logger.debug(f"[GPS] Fix: {msg.latitude:.6f}, {msg.longitude:.6f} "
+                                 f"alt={msg.altitude}m sats={msg.num_sats}")
+                else:
+                    logger.debug(f"[GPS] No fix yet (sats={msg.num_sats})")
+
+            # $GPRMC — Speed over ground
+            elif isinstance(msg, pynmea2.types.talker.RMC):
+                spd = getattr(msg, "spd_over_grnd", None)
+                if spd is not None:
+                    try:
+                        gps_state.update(speed_knots=float(spd))
+                    except (TypeError, ValueError):
+                        pass
+
+    finally:
+        if ser.is_open:
+            ser.close()
+        logger.info("[GPS] Serial port closed.")
+
+
+# ---------------------------------------------------------------------------
+# Standalone entry point
+# ---------------------------------------------------------------------------
+def _standalone_main():
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s [%(levelname)s] %(message)s",
+                        datefmt="%H:%M:%S")
+    parser = argparse.ArgumentParser(description="GY-NEO6MV2 GPS Module NMEA Reader")
+    parser.add_argument("-p", "--port", default="/dev/serial0",
+                        help="Serial port path (default: /dev/serial0)")
+    parser.add_argument("-b", "--baudrate", type=int, default=9600,
+                        help="Baud rate (NEO-6M default is usually 9600)")
+    args = parser.parse_args()
+
+    stop = threading.Event()
+    t = threading.Thread(target=gps_thread, args=(args.port, args.baudrate, stop), daemon=True)
+    t.start()
+
+    print(f"GPS reader running on {args.port}. Press Ctrl+C to stop.\n")
+    try:
+        while True:
+            time.sleep(1)
+            snap = gps_state.snapshot()
+            if gps_state.has_fix:
+                print(f"[{snap['timestamp_utc']}]  "
+                      f"LAT={snap['latitude']:.6f}  LON={snap['longitude']:.6f}  "
+                      f"ALT={snap['altitude_m']}m  "
+                      f"SPD={snap['speed_knots']} kn  "
+                      f"SATS={snap['satellites']}")
+            else:
+                print(f"[No Fix]  satellites={snap['satellites']}  quality={snap['fix_quality']}")
+    except KeyboardInterrupt:
+        stop.set()
+        t.join(timeout=2)
+        print("\nStopped.")
+
+
+if __name__ == "__main__":
+    _standalone_main()

@@ -22,6 +22,7 @@ from datetime import datetime
 
 from ble_pairing import run_ble_pairing
 from obd_scanner import can_reader_thread
+from gps_reader import gps_thread, gps_state  # Bug #5 fix: import GPS module
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -174,6 +175,7 @@ def server_sender_thread(
     logger.info(f"Server sender started → {server_url}")
     analyzer = DangerAnalyzer()
     batch: list[dict] = []
+    retry_batch: deque = deque(maxlen=500)  # Bug #3 fix: holds records from failed POSTs
     last_send = time.time()
 
     # --- Request VIN and DTCs once at startup ---
@@ -216,6 +218,9 @@ def server_sender_thread(
                 if a["severity"] == "CRITICAL":
                     logger.warning(f"🚨 {a['type']}: {a}")
 
+            # Bug #5 fix: stamp the latest GPS fix onto every telemetry record
+            gps = gps_state.snapshot()
+
             # Build a complete, explicit telemetry record
             record = {
                 # Identity / time
@@ -234,6 +239,13 @@ def server_sender_thread(
                 "dtcs":               meta["dtcs"],
                 # Danger events produced by the analyzer
                 "alerts":             alerts,
+                # GPS (None fields mean no fix yet)
+                "gps_latitude":       gps["latitude"],
+                "gps_longitude":      gps["longitude"],
+                "gps_altitude_m":     gps["altitude_m"],
+                "gps_speed_knots":    gps["speed_knots"],
+                "gps_satellites":     gps["satellites"],
+                "gps_fix":            gps_state.has_fix,
             }
 
             batch.append(record)
@@ -262,10 +274,21 @@ def server_sender_thread(
                 resp = requests.post(server_url, json=payload, timeout=5)
                 if resp.status_code < 300:
                     logger.info(f"[Sender] Server accepted ({resp.status_code})")
+                    retry_batch.clear()  # Confirmed delivery — discard any held retries
                 else:
                     logger.warning(f"[Sender] Server {resp.status_code}: {resp.text[:200]}")
+                    # Bug #3 fix: keep failed payload for next send attempt
+                    retry_batch.extend(payload)
             except requests.RequestException as e:
-                logger.error(f"[Sender] Server sync failed: {e}")
+                logger.error(f"[Sender] Server sync failed: {e} — will retry on next flush")
+                # Bug #3 fix: preserve failed records so they are retried next cycle
+                retry_batch.extend(payload)
+
+            # Re-inject up to 100 previously failed records into the new batch
+            if retry_batch:
+                retry_count = min(len(retry_batch), 100)
+                batch = list(retry_batch)[:retry_count] + batch
+                logger.info(f"[Sender] Re-queued {retry_count} record(s) from retry buffer")
 
     # Flush remaining records on shutdown
     if batch:
@@ -284,6 +307,7 @@ def main():
     parser = argparse.ArgumentParser(description="Safe Zafira Telemetry Node")
     parser.add_argument('-i', '--interface', default='can0', help='CAN interface (default: can0)')
     parser.add_argument('--server-url', default=DEFAULT_SERVER_URL, help='Server endpoint URL')
+    parser.add_argument('--gps-port', default='/dev/serial0', help='GPS UART port (default: /dev/serial0)')
     args = parser.parse_args()
 
     logger.info("=" * 50)
@@ -291,30 +315,39 @@ def main():
     logger.info("=" * 50)
 
     # ── Step 1: BLE Pairing (one-time) ───────────────────────────
-    logger.info("[BOOT] Step 1/3: BLE Pairing...")
+    logger.info("[BOOT] Step 1/4: BLE Pairing...")
     run_ble_pairing()
     logger.info("[BOOT] BLE Pairing complete ✓")
 
-    # ── Step 2 & 3: Start threads ────────────────────────────────
+    # ── Steps 2-4: Start threads ──────────────────────────────────
     data_queue = queue.Queue(maxsize=50)
     command_queue = queue.Queue(maxsize=10)
     response_queue = queue.Queue(maxsize=10)
     stop_event = threading.Event()
 
-    logger.info(f"[BOOT] Step 2/3: Starting OBD reader on {args.interface}...")
+    # Bug #5 fix: start GPS as a background daemon thread
+    logger.info(f"[BOOT] Step 2/4: Starting GPS reader on {args.gps_port}...")
+    gps_daemon = threading.Thread(
+        target=gps_thread,
+        args=(args.gps_port, 9600, stop_event),
+        daemon=True,
+    )
+
+    logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
     reader = threading.Thread(
         target=can_reader_thread,
         args=(args.interface, data_queue, command_queue, response_queue, stop_event),
         daemon=True,
     )
 
-    logger.info(f"[BOOT] Step 3/3: Starting server sender → {args.server_url}")
+    logger.info(f"[BOOT] Step 4/4: Starting server sender → {args.server_url}")
     sender = threading.Thread(
         target=server_sender_thread,
         args=(data_queue, command_queue, response_queue, stop_event, args.server_url),
         daemon=True,
     )
 
+    gps_daemon.start()
     reader.start()
     sender.start()
 
@@ -327,6 +360,7 @@ def main():
         logger.info("Shutting down...")
         stop_event.set()
     finally:
+        gps_daemon.join(timeout=2)
         reader.join(timeout=3)
         sender.join(timeout=3)
         logger.info("Shutdown complete.")
