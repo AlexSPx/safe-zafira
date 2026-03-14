@@ -1,0 +1,32 @@
+{
+    "vehicle": {
+        "make": "Toyota",
+        "model": "Yaris",
+        "year": 2007
+    },
+    "can_messages": {
+        "beep_trigger": {
+            "description": "Active CAN command to trigger the internal dash chime/audio (Placeholder)",
+            "id": "0x620",
+            "data": ["0x10", "0x80", "0x00", "0x00", "0x30", "0x6E", "0x00", "0x50"],
+            "is_extended_id": false
+        },
+        "brake_status": {
+            "description": "Passive broadcast ID for brake pedal position (e.g. Toyota common ID 0x224)",
+            "id": "0x224",
+            "byte_index": 4
+        },
+        "abs_activated": {
+            "description": "Passive broadcast ID for ABS activation flag (Placeholder)",
+            "id": "0x224",
+            "byte_index": 0,
+            "active_value": "0x01"
+        },
+        "airbags_open": {
+            "description": "Passive broadcast ID for Airbag deployed flag (Placeholder)",
+            "id": "0x123",
+            "byte_index": 0,
+            "active_value": "0xFF"
+        }
+    }
+}

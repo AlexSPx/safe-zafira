@@ -1,0 +1,456 @@
+import can
+import time
+import struct
+import threading
+import queue
+import json
+import os
+from datetime import datetime
+
+# Standard OBD-II Request and Response IDs for CAN (11-bit)
+OBD_REQUEST_ID = 0x7DF
+OBD_RESPONSE_BASE = 0x7E8  # Engine ECU usually responds here
+
+# Modes
+MODE_CURRENT_DATA = 0x01
+MODE_VEHICLE_INFO = 0x09
+
+# Mode 01 PIDs
+PID_VEHICLE_SPEED = 0x0D
+PID_FUEL_LEVEL = 0x2F
+PID_CONTROL_MODULE_VOLTAGE = 0x42
+PID_ODOMETER = 0xA6             # May not be supported on all cars
+
+# Mode 09 PIDs
+PID_VIN = 0x02
+
+
+CONFIG_FILE = "car_config.json"
+
+def load_config():
+    """Loads the permanent car configuration file."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"[Config] Error parsing config: {e}")
+    print("[Config] No valid config found. Using standard generic fallback.")
+    return {}
+
+class PassiveCANListener(can.Listener):
+    """Listens passively to all CAN messages and checks for specific IDs defined in config."""
+    def __init__(self, config):
+        self.abs_activated = False
+        self.airbags_open = False
+        self.brake_level = 0.0
+        
+        msgs = config.get("can_messages", {})
+        
+        # Parse hex IDs safely
+        try: self.abs_id = int(msgs.get("abs_activated", {}).get("id", "0xFFFFFF"), 16)
+        except: self.abs_id = -1
+        
+        try: self.airbags_id = int(msgs.get("airbags_open", {}).get("id", "0xFFFFFF"), 16)
+        except: self.airbags_id = -1
+        
+        try: self.brake_id = int(msgs.get("brake_status", {}).get("id", "0xFFFFFF"), 16)
+        except: self.brake_id = -1
+        
+        self.abs_cfg = msgs.get("abs_activated", {})
+        self.airbags_cfg = msgs.get("airbags_open", {})
+        self.brake_cfg = msgs.get("brake_status", {})
+
+    def on_message_received(self, msg):
+        # 1. Check for passive Brake Pedal Data
+        if msg.arbitration_id == self.brake_id:
+            idx = self.brake_cfg.get("byte_index", 2)
+            if len(msg.data) > idx:
+                # Assuming 0-255 maps to 0-100%
+                self.brake_level = min(100.0, (msg.data[idx] * 100) / 255.0)
+                
+        # 2. Check for passive ABS Activation
+        if msg.arbitration_id == self.abs_id:
+            idx = self.abs_cfg.get("byte_index", 1)
+            active_val = int(self.abs_cfg.get("active_value", "0x01"), 16)
+            if len(msg.data) > idx:
+                self.abs_activated = (msg.data[idx] == active_val)
+                
+        # 3. Check for passive Airbags Deployed
+        if msg.arbitration_id == self.airbags_id:
+            idx = self.airbags_cfg.get("byte_index", 0)
+            active_val = int(self.airbags_cfg.get("active_value", "0xFF"), 16)
+            if len(msg.data) > idx:
+                self.airbags_open = (msg.data[idx] == active_val)
+
+
+def send_obd_request(bus, mode, pid):
+    """Sends an OBD-II request over CAN."""
+    data = [0x02, mode, pid, 0x00, 0x00, 0x00, 0x00, 0x00]
+    msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=data, is_extended_id=False)
+    try:
+        bus.send(msg)
+    except can.CanError as e:
+        pass
+
+def parse_vin_response(bus):
+    """
+    Parses a multi-frame OBD-II response for the VIN.
+    VINs are 17 characters long, so they require ISO-TP multi-frame (First Frame, Consecutive Frames).
+    """
+    send_obd_request(bus, MODE_VEHICLE_INFO, PID_VIN)
+    
+    vin_bytes = bytearray()
+    expected_length = 0
+    
+    timeout = time.time() + 2.0
+    while time.time() < timeout:
+        msg = bus.recv(0.5)
+        if not msg or msg.arbitration_id < 0x7E8 or msg.arbitration_id > 0x7EF:
+            continue
+            
+        data = msg.data
+        if not data: continue
+        
+        pci = data[0] >> 4
+        
+        if pci == 0:  # Single Frame (Unusual for VIN, but possible if short)
+            if data[1] == 0x49 and data[2] == PID_VIN:
+                length = data[0] & 0x0F
+                # data[3] is the number of reporting items, data[4:] is the VIN
+                vin_bytes.extend(data[4:1+length])
+                break
+                
+        elif pci == 1: # First Frame
+            expected_length = ((data[0] & 0x0F) << 8) | data[1]
+            if data[2] == 0x49 and data[3] == PID_VIN:
+                vin_bytes.extend(data[5:8])
+                # Send Flow Control frame to tell ECU to send the rest
+                fc_msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                bus.send(fc_msg)
+                
+        elif pci == 2: # Consecutive Frame
+            vin_bytes.extend(data[1:])
+            # Filter the VIN to valid ASCII
+            if len(vin_bytes) >= 17:
+                break
+                
+    if len(vin_bytes) >= 17:
+        # VIN usually contains padded nulls or count bytes, we extract ASCII 
+        vin = ''.join(chr(b) for b in vin_bytes if 32 <= b <= 126)
+        # Ensure it's exactly 17 characters
+        return vin[-17:]
+    
+    return "Unknown/Unsupported"
+
+
+def trigger_beep(bus, config):
+    """Sends a specific CAN message defined in config to trigger the horn or chime."""
+    beep_cfg = config.get("can_messages", {}).get("beep_trigger", None)
+    
+    if not beep_cfg:
+        print("\n[CAN Writer] No BEEP CAN message configured in car_config.json!")
+        return
+
+    print(f"\n[CAN Writer] 🔊 SENDING BEEP COMMAND (ID: {beep_cfg.get('id')})! 🔊")
+    
+    try:
+        arb_id = int(beep_cfg.get("id", "0x123"), 16)
+        data_hex = beep_cfg.get("data", ["0x00", "0x00", "0x00", "0x00", "0x00", "0x00", "0x00", "0x00"])
+        data_bytes = [int(x, 16) for x in data_hex]
+        
+        beep_msg = can.Message(
+            arbitration_id=arb_id,
+            data=data_bytes,
+            is_extended_id=beep_cfg.get("is_extended_id", False)
+        )
+        bus.send(beep_msg)
+    except Exception as e:
+        print(f"[CAN Writer] Failed to send beep command: {e}")
+
+
+def request_and_read(bus, mode, pid, parser_func):
+    """Sends a request, waits for a response, and parses it."""
+    send_obd_request(bus, mode, pid)
+    
+    timeout = time.time() + 0.2
+    while time.time() < timeout:
+        msg = bus.recv(0.05)
+        if msg and 0x7E8 <= msg.arbitration_id <= 0x7EF:
+            # Check if this is the response to our PID
+            if msg.data[1] == (mode + 0x40) and msg.data[2] == pid:
+                return parser_func(msg.data)
+    return None
+
+# --- PARSERS ---
+
+def parse_speed(data):
+    return data[3] # km/h (int)
+
+def parse_fuel(data):
+    return (data[3] * 100) / 255 # %
+
+def parse_voltage(data):
+    return ((data[3] * 256) + data[4]) / 1000.0 # V
+
+def parse_odometer(data):
+    if data[0] >= 6:
+        return (data[3] * (2**24) + data[4] * (2**16) + data[5] * (2**8) + data[6]) / 10.0 # km
+    return None
+
+
+# --- THREAD 1: CAN Data Producer & Command Executor ---
+def can_reader_thread(interface, data_queue, command_queue, response_queue, stop_event):
+    """
+    Continuously polls the CAN bus for live data and calculates physics-based events.
+    Packs the data and sends it to the queue every 500ms.
+    Reads config file, spawns background listener, and executes commands.
+    """
+    config = load_config()
+    veh = config.get("vehicle", {})
+    if veh:
+        print(f"[Reader] Identified Configured Vehicle: {veh.get('year')} {veh.get('make')} {veh.get('model')}")
+
+    print(f"[Reader] Connecting to OBD-II via {interface}...")
+    try:
+        bus = can.interface.Bus(channel=interface, bustype='socketcan')
+    except OSError as e:
+        print(f"[Reader] Error opening interface: {e}")
+        stop_event.set()
+        return
+
+    # Set up background listener for passive variables (abs, brakes, airbags)
+    listener = PassiveCANListener(config)
+    notifier = can.Notifier(bus, [listener])
+
+    last_speed = 0
+    last_time = time.time()
+    
+    print("[Reader] Polling started.")
+    
+    while not stop_event.is_set():
+        loop_start_time = time.time()
+        
+        # 0. Check for commands from the Consumer Thread (like BEEP or REQ_VIN)
+        try:
+            command = command_queue.get_nowait()
+            if command == "BEEP":
+                trigger_beep(bus, config)
+            elif command == "REQ_VIN":
+                print("\n[Reader] Consumer requested VIN. Querying car...")
+                vin = parse_vin_response(bus)
+                
+                # Send it back to the consumer via the response queue
+                try:
+                    response_queue.put_nowait({"type": "VIN_RESPONSE", "data": vin})
+                except queue.Full:
+                    pass
+                
+            command_queue.task_done()
+        except queue.Empty:
+            pass
+        
+        # 1. Read Raw Active OBD Data
+        current_speed = request_and_read(bus, MODE_CURRENT_DATA, PID_VEHICLE_SPEED, parse_speed)
+        fuel = request_and_read(bus, MODE_CURRENT_DATA, PID_FUEL_LEVEL, parse_fuel)
+        voltage = request_and_read(bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage)
+        mileage = request_and_read(bus, MODE_CURRENT_DATA, PID_ODOMETER, parse_odometer)
+        
+        # Note: We pull brake level directly from the passive CAN listener instead of OBD polling!
+        brake_level = listener.brake_level
+        
+        # 2. Physics / Safety Calculations (Fallback if passive CAN isn't working)
+        abs_activated = listener.abs_activated
+        airbags_open = listener.airbags_open
+        
+        if current_speed is not None:
+            current_time = time.time()
+            time_diff = current_time - last_time
+            
+            if time_diff > 0:
+                deceleration = (last_speed - current_speed) / time_diff
+                
+                # Flag Logic based on deceleration (Physics fallback overrides to True if physical drop implies crash)
+                if deceleration > 30: 
+                    airbags_open = True
+                    abs_activated = True
+                elif deceleration > 10:
+                    abs_activated = True
+                
+            last_speed = current_speed
+            last_time = current_time
+
+        # 3. Create Data Packet
+        packet = {
+            "timestamp": datetime.now().isoformat(),
+            "speed_kmh": current_speed if current_speed is not None else -1,
+            "fuel_percent": round(fuel, 1) if fuel is not None else -1,
+            "battery_v": round(voltage, 2) if voltage is not None else -1,
+            "mileage_km": round(mileage, 1) if mileage is not None else -1,
+            "brake_level_percent": round(brake_level, 1),
+            "abs_activated": abs_activated,
+            "airbags_open": airbags_open
+        }
+        
+        # 4. Send to Consumer
+        try:
+            if data_queue.full():
+                data_queue.get_nowait()
+            data_queue.put_nowait(packet)
+        except queue.Full:
+            pass
+
+        # 5. Enforce ~500ms loop
+        elapsed = time.time() - loop_start_time
+        sleep_time = max(0, 0.5 - elapsed)
+        time.sleep(sleep_time)
+
+    notifier.stop()
+    bus.shutdown()
+    print("[Reader] Polling stopped.")
+
+
+# --- THREAD 2: Data Consumer ---
+def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
+    """
+    Reads decoded data from the queue and processes it.
+    Can send commands back to the reader thread via the command_queue,
+    and receive specific responses back via response_queue.
+    Includes a keyboard listener to manually trigger actions.
+    """
+    print("[Consumer] Ready to receive data.")
+    
+    # Try setting up a manual keyboard listener for 'b' to beep
+    try:
+        from pynput import keyboard
+        
+        def on_press(key):
+            try:
+                if hasattr(key, 'char') and key.char == 'b':
+                    print("\n[Consumer] Manual BEEP triggered via keyboard!")
+                    try:
+                        command_queue.put_nowait("BEEP")
+                    except queue.Full:
+                        pass
+            except Exception:
+                pass
+
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+        print("[Consumer] Keyboard listener active: Press 'b' to send a manual BEEP command.")
+    except ImportError:
+        print("[Consumer] 'pynput' library not found. Manual keyboard trigger disabled.")
+        print("           (Run 'pip install pynput' to enable pressing 'b' to beep)")
+
+
+    # Example: Fire off a request to the Reader Thread to get the VIN initially
+    # Give the reader thread a slight moment to start up first
+    time.sleep(1)
+    print("\n[Consumer] Requesting VIN from the car...")
+    command_queue.put("REQ_VIN")
+    
+    # Wait for the VIN response 
+    try:
+        response = response_queue.get(timeout=5.0)
+        if response["type"] == "VIN_RESPONSE":
+            vin = response["data"]
+            print(f"\n======================================")
+            print(f"[Consumer] RECEIVED VIN: {vin}")
+            print(f"======================================\n")
+        response_queue.task_done()
+    except queue.Empty:
+        print("\n[Consumer] [!] Timed out waiting for VIN response!")
+    
+    
+    # Start the continuous data consumption loop
+    while not stop_event.is_set():
+        try:
+            # Wait for data, timeout every second to check stop_event
+            data = data_queue.get(timeout=1.0)
+            
+            # FORMATTED OUTPUT
+            print("\n" + "="*40)
+            print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] NEW CAR DATA")
+            print("="*40)
+            print(f" Speed       : {data['speed_kmh']} km/h")
+            print(f" Fuel        : {data['fuel_percent']} %")
+            print(f" Battery     : {data['battery_v']} V")
+            print(f" Mileage     : {data['mileage_km']} km")
+            print(f" Brake Pedal : {data['brake_level_percent']} %")
+            
+            # --- ACTION LOGIC & HIGHLIGHTS ---
+            trigger_warning_beep = False
+            
+            if data['airbags_open']:
+                print(f" AIRBAGS     : [!!!!] TRIGGERED [!!!!]")
+                trigger_warning_beep = True
+            else:
+                print(f" AIRBAGS     : OK")
+                
+            if data['abs_activated']:
+                print(f" ABS         : [!] ACTIVATED [!]")
+                trigger_warning_beep = True
+            else:
+                print(f" ABS         : INACTIVE")
+                
+            print("="*40)
+            
+            # Send a command back to the reader thread to BEEP the car
+            # if a safety event was detected!
+            if trigger_warning_beep:
+                try:
+                    command_queue.put_nowait("BEEP")
+                except queue.Full:
+                    pass
+            
+            data_queue.task_done()
+            
+        except queue.Empty:
+            continue
+    
+    # Cleanup listener if it was created
+    try:
+        listener.stop()
+    except:
+        pass
+
+def main(interface='can0'):
+    # Shared Queues for bi-directional communication
+    data_queue = queue.Queue(maxsize=5)     # Data: Reader -> Consumer
+    command_queue = queue.Queue(maxsize=5)  # Commands: Consumer -> Reader
+    response_queue = queue.Queue(maxsize=5) # Specific Responses: Reader -> Consumer
+    
+    stop_event = threading.Event()
+
+    # Create Threads
+    reader = threading.Thread(target=can_reader_thread, args=(interface, data_queue, command_queue, response_queue, stop_event), daemon=True)
+    consumer = threading.Thread(target=data_consumer_thread, args=(data_queue, command_queue, response_queue, stop_event), daemon=True)
+
+    try:
+        # Start Threads
+        reader.start()
+        consumer.start()
+
+        # Main thread just waits until user presses Ctrl+C
+        while reader.is_alive() and consumer.is_alive():
+            time.sleep(1)
+            
+    except KeyboardInterrupt:
+        print("\nStopping threads...")
+        stop_event.set()
+        
+    finally:
+        reader.join(timeout=2)
+        consumer.join(timeout=2)
+        print("Shutdown complete.")
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Multithreaded OBD-II Live Monitor")
+    parser.add_argument('-i', '--interface', default='can0', help='CAN interface to use (default: can0)')
+    args = parser.parse_args()
+    
+    main(args.interface)
+
+
+
