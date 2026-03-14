@@ -36,15 +36,31 @@ def is_device_paired():
             return False
     return False
 
-def mark_device_paired():
-    """Persist the paired state to disk."""
-    config = {'paired': True, 'device_id': get_device_id()}
+def mark_device_paired(jwt_token: str = ""):
+    """Persist the paired state and JWT token to disk."""
+    config = {
+        'paired': True,
+        'device_id': get_device_id(),
+        'jwt_token': jwt_token,
+    }
     try:
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f)
-        logger.info(f"Saved pairing config to {CONFIG_FILE}. Future boots will skip BLE.")
+        logger.info(f"Saved pairing config to {CONFIG_FILE}. JWT stored. Future boots will skip BLE.")
     except Exception as e:
         logger.error(f"Error saving config file: {e}")
+
+
+def load_device_config() -> dict:
+    """Load persistent device config (jwt_token, device_id, paired flag)."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
 
 class BLEPairingServer:
     def __init__(self):
@@ -58,17 +74,25 @@ class BLEPairingServer:
         return self.hardware_id.encode("utf-8")
 
     def write_request(self, characteristic, value: bytearray, **kwargs):
+        """
+        The app writes the JWT Bearer token here after cloud registration.
+        Format: a raw JWT string (e.g. 'eyJhbGci...')
+        """
         decoded = ""
         try:
             decoded = value.decode("utf-8").strip()
-            logger.info(f"Received BLE write payload: {decoded}")
-        except:
-            logger.warning(f"Failed decoding payload: {value}")
-            
-        if decoded.upper() == "OK":
-            logger.info("Cloud Registration Confirmed via BLE!")
-            mark_device_paired()
+            logger.info(f"Received BLE JWT token (length={len(decoded)})")
+        except Exception:
+            logger.warning(f"Failed decoding BLE payload: {value}")
+            return
+
+        # Accept any non-empty string as the token (it will be validated by the server)
+        if decoded:
+            logger.info("JWT token received — marking device as paired.")
+            mark_device_paired(jwt_token=decoded)
             self.paired_event.set()
+        else:
+            logger.warning("Received empty BLE payload, ignoring.")
 
     async def start_server(self):
         if is_device_paired():

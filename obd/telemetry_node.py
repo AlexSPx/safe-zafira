@@ -3,17 +3,27 @@ Safe Zafira — Telemetry Node (Main Entry Point)
 
 Boot sequence:
   1. BLE Pairing (one-time, skipped if already paired)
-  2. Start OBD CAN Reader thread (shared data_queue)
-  3. Start Driver Attention Monitor thread (webcam-based)
-  4. Start Server Sender thread (reads queue, analyzes, POSTs JSON array)
+  2. Load JWT token from device_config.json
+  3. Start OBD CAN Reader thread (or mock thread if --mock is passed)
+  4. Start Server Sender thread — shapes packets to VehicleData format
+     and POSTs to /vehicles/data with Bearer auth
 
 Usage:
-  python3 telemetry_node.py [-i can0] [--server-url http://...] [--camera N] [--headless]
+  # Real CAN bus:
+  python3 telemetry_node.py -i can0 --server-url http://your-server
+
+  # Mock mode (no hardware required — sends fake OBD data to test upload):
+    python3 telemetry_node.py --mock --skip-ble --no-gps --server-url http://localhost:8080
+
+Environment / required config:
+  device_config.json — written by ble_pairing.py; contains jwt_token and device_id
 """
 
 import time
 import json
+import math
 import queue
+import random
 import threading
 import logging
 import argparse
@@ -21,10 +31,31 @@ import requests
 from collections import deque
 from datetime import datetime
 
-from ble_pairing import run_ble_pairing
+from ble_pairing import run_ble_pairing, load_device_config
 from obd_scanner import can_reader_thread
-from gps_reader import gps_thread, gps_state  # Bug #5 fix: import GPS module
 from driver_attention import AttentionMonitor
+
+try:
+    from gps_reader import gps_thread, gps_state
+    GPS_IMPORT_ERROR = None
+except Exception as exc:
+    gps_thread = None
+    GPS_IMPORT_ERROR = exc
+
+    class _NoGpsState:
+        def snapshot(self) -> dict:
+            return {
+                "latitude": None,
+                "longitude": None,
+                "altitude_m": None,
+                "speed_knots": None,
+                "satellites": None,
+                "fix_quality": 0,
+                "timestamp_utc": None,
+            }
+
+    gps_state = _NoGpsState()
+
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -39,44 +70,52 @@ logger = logging.getLogger("telemetry")
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DEFAULT_SERVER_URL = "http://localhost:8080/api/telemetry"
-SEND_INTERVAL = 5.0       # seconds between server pushes
-CRASH_DECEL_THRESHOLD = 30  # km/h per second — likely crash
-HARD_BRAKE_THRESHOLD = 10   # km/h per second — hard braking / ABS event
-FATIGUE_DRIVE_LIMIT = 2 * 3600  # 2 hours continuous driving
-DEVICE_CAN_TIMEOUT = 5.0   # seconds without CAN data → device removed alert
+DEFAULT_SERVER_URL   = "http://localhost:8080"
+SEND_INTERVAL        = 5.0        # seconds between server POSTs
+CRASH_DECEL_THRESHOLD = 30        # km/h/s
+HARD_BRAKE_THRESHOLD  = 10        # km/h/s
+FATIGUE_DRIVE_LIMIT   = 2 * 3600  # 2 hours
+DEVICE_CAN_TIMEOUT    = 5.0       # seconds of CAN silence → device removed
+
+
+# ---------------------------------------------------------------------------
+# Enum strings matching server Dangers enum exactly
+# ---------------------------------------------------------------------------
+class Dangers:
+    CRASH_DETECTED   = "CRASH_DETECTED"
+    HARD_BRAKING     = "HARD_BRAKING"
+    DRIVER_FATIGUE   = "DRIVER_FATIGUE"
+    AIRBAGS_DEPLOYED = "AIRBAGS_DEPLOYED"
+    ABS_ACTIVATED    = "ABS_ACTIVATED"
+    LOW_BATTERY      = "LOW_BATTERY"
+    DRIVER_NOT_AWARE = "DRIVER_NOT_AWARE"   # sustained driver distraction/drowsiness
+
+# How long the driver must be NOT_AWARE continuously before we raise a danger
+DRIVER_NOT_AWARE_TIMEOUT = 5.0  # seconds
 
 
 # ---------------------------------------------------------------------------
 # Danger / Crash Analyzer
 # ---------------------------------------------------------------------------
 class DangerAnalyzer:
-    """
-    Consumes raw OBD packets and produces danger/alert events.
-    Maintains rolling state for crash detection, fatigue, and device health.
-    """
+    """Stateful analyzer — call .analyze(packet) per packet, returns danger strings."""
 
     def __init__(self):
-        self.speed_history = deque(maxlen=20)  # (timestamp, speed)
-        self.driving_start = None
-        self.last_break_time = time.time()
-        self.last_packet_time = None
+        self.speed_history        = deque(maxlen=20)
+        self.driving_start        = None
+        self.last_packet_time     = None
+        # Driver attention tracking
+        self._not_aware_since: float | None = None
 
-    def analyze(self, packet: dict) -> list[dict]:
-        """
-        Accepts a single OBD packet dict. Returns a list of alert dicts
-        (may be empty if nothing dangerous detected).
-        """
-        alerts = []
-        now = time.time()
+    def analyze(self, packet: dict, attention_monitor: "AttentionMonitor | None" = None) -> list[str]:
+        dangers = []
+        now   = time.time()
         speed = packet.get("speed_kmh", -1)
-
         self.last_packet_time = now
 
-        # --- 1. Crash Detection (sudden deceleration) ---
+        # 1. Crash / hard brake (deceleration)
         if speed >= 0:
             self.speed_history.append((now, speed))
-
             if len(self.speed_history) >= 2:
                 old_t, old_s = self.speed_history[0]
                 new_t, new_s = self.speed_history[-1]
@@ -84,78 +123,130 @@ class DangerAnalyzer:
                 if dt > 0:
                     decel = (old_s - new_s) / dt
                     if decel >= CRASH_DECEL_THRESHOLD:
-                        alerts.append({
-                            "type": "CRASH_DETECTED",
-                            "severity": "CRITICAL",
-                            "deceleration_kmh_s": round(decel, 1),
-                            "speed_before": old_s,
-                            "speed_after": new_s,
-                            "timestamp": packet["timestamp"],
-                        })
+                        dangers.append(Dangers.CRASH_DETECTED)
                         self.speed_history.clear()
                     elif decel >= HARD_BRAKE_THRESHOLD:
-                        alerts.append({
-                            "type": "HARD_BRAKING",
-                            "severity": "WARNING",
-                            "deceleration_kmh_s": round(decel, 1),
-                            "timestamp": packet["timestamp"],
-                        })
+                        dangers.append(Dangers.HARD_BRAKING)
 
-        # --- 2. Driver Fatigue ---
+        # 2. Driver fatigue
         if speed > 0:
             if self.driving_start is None:
                 self.driving_start = now
-            drive_duration = now - self.driving_start
-            if drive_duration > FATIGUE_DRIVE_LIMIT:
-                alerts.append({
-                    "type": "DRIVER_FATIGUE",
-                    "severity": "WARNING",
-                    "driving_minutes": round(drive_duration / 60, 1),
-                    "timestamp": packet["timestamp"],
-                })
-        elif speed == 0:
-            # If stopped for > 60s, count as a break
-            if self.driving_start and (now - self.driving_start) > 60:
-                self.driving_start = None
-                self.last_break_time = now
+            if (now - self.driving_start) > FATIGUE_DRIVE_LIMIT:
+                dangers.append(Dangers.DRIVER_FATIGUE)
+        elif speed == 0 and self.driving_start and (now - self.driving_start) > 60:
+            self.driving_start = None
 
-        # --- 3. Airbag / ABS from OBD packet ---
+        # 3. Airbag / ABS from passive CAN
         if packet.get("airbags_open"):
-            alerts.append({
-                "type": "AIRBAG_DEPLOYED",
-                "severity": "CRITICAL",
-                "timestamp": packet["timestamp"],
-            })
+            dangers.append(Dangers.AIRBAGS_DEPLOYED)
         if packet.get("abs_activated"):
-            alerts.append({
-                "type": "ABS_ACTIVATED",
-                "severity": "WARNING",
-                "timestamp": packet["timestamp"],
-            })
+            dangers.append(Dangers.ABS_ACTIVATED)
 
-        # --- 4. Low Battery ---
+        # 4. Low car battery
         batt = packet.get("battery_v", -1)
         if 0 < batt < 11.5:
-            alerts.append({
-                "type": "LOW_BATTERY",
-                "severity": "WARNING",
-                "voltage": batt,
-                "timestamp": packet["timestamp"],
-            })
+            dangers.append(Dangers.LOW_BATTERY)
 
-        return alerts
+        # 5. Driver attention — sustained NOT_AWARE raises a danger
+        if attention_monitor is not None:
+            if attention_monitor.state == "NOT_AWARE":
+                if self._not_aware_since is None:
+                    self._not_aware_since = now
+                elif (now - self._not_aware_since) >= DRIVER_NOT_AWARE_TIMEOUT:
+                    dangers.append(Dangers.DRIVER_NOT_AWARE)
+            else:
+                self._not_aware_since = None  # driver looked back — reset timer
 
-    def check_device_health(self) -> list[dict]:
-        """Called periodically; returns alerts if CAN data has gone silent."""
-        alerts = []
-        if self.last_packet_time and (time.time() - self.last_packet_time) > DEVICE_CAN_TIMEOUT:
-            alerts.append({
-                "type": "DEVICE_REMOVED",
-                "severity": "CRITICAL",
-                "seconds_silent": round(time.time() - self.last_packet_time, 1),
-                "timestamp": datetime.now().isoformat(),
-            })
-        return alerts
+        return dangers
+
+    def check_device_health(self) -> bool:
+        """Returns True if CAN has been silent for too long."""
+        return (self.last_packet_time is not None and
+                (time.time() - self.last_packet_time) > DEVICE_CAN_TIMEOUT)
+
+
+# ---------------------------------------------------------------------------
+# VehicleData payload builder — matches server Java record exactly
+# ---------------------------------------------------------------------------
+def build_vehicle_data(raw: dict, dangers: list[str]) -> dict:
+    """
+    Converts an internal OBD packet into the server's VehicleData JSON format.
+    GPS coordinates come from the shared gps_state (updated by gps_thread).
+    """
+    speed      = raw.get("speed_kmh")
+    fuel       = raw.get("fuel_percent")
+    battery_v  = raw.get("battery_v")
+    airbags    = raw.get("airbags_open")
+    abs_active = raw.get("abs_activated")
+    dtcs       = raw.get("dtcs", [])
+
+    # Always pull GPS from the shared live state (not from the OBD packet)
+    gps = gps_state.snapshot()
+    lat = gps["latitude"]
+    lon = gps["longitude"]
+
+    payload: dict = {
+        "speed":       int(speed) if speed is not None and speed >= 0 else None,
+        "location":    {"x": lat, "y": lon} if lat is not None and lon is not None else None,
+        "diagnostics": dtcs if dtcs and dtcs != ["No Errors Found"] else [],
+        "battery":     None,             # RPi internal battery — not read yet
+        "batteryCar":  round(battery_v, 2) if battery_v is not None and battery_v >= 0 else None,
+        "fuel":        round(fuel, 1)    if fuel      is not None and fuel >= 0      else None,
+        "dangers":     dangers,
+        "airbags":     bool(airbags)     if airbags   is not None else None,
+        "abs":         bool(abs_active)  if abs_active is not None else None,
+        "esp":         None,
+    }
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# Mock CAN data producer thread
+# ---------------------------------------------------------------------------
+def mock_can_reader_thread(data_queue: queue.Queue, stop_event: threading.Event):
+    """
+    Puts a realistic-looking OBD packet into data_queue every ~500ms.
+    Use --mock to activate this instead of the real CAN reader.
+    The speed slowly oscillates so crash / hard-brake detection can be tested.
+    """
+    logger.info("[MOCK] Mock CAN reader started — no hardware required.")
+    t = 0
+    dtcs_sent = False
+
+    while not stop_event.is_set():
+        # Oscillate speed between 0 and 120 km/h
+        speed = max(0, 60 + 60 * math.sin(t / 30))
+
+        packet = {
+            "timestamp":            datetime.now().isoformat(),
+            "speed_kmh":            round(speed, 1),
+            "fuel_percent":         round(60.0 - t * 0.01, 1),
+            "battery_v":            round(13.8 + random.uniform(-0.1, 0.1), 2),
+            "mileage_km":           94230 + round(t * 0.01, 1),
+            "brake_level_percent":  0.0,
+            "abs_activated":        False,
+            "airbags_open":         False,
+            "dtcs":                 ["P0420"] if not dtcs_sent else [],
+            # No GPS in mock mode
+            "gps_latitude":         None,
+            "gps_longitude":        None,
+        }
+        dtcs_sent = True  # only send DTCs on first packet
+
+        try:
+            data_queue.put_nowait(packet)
+        except queue.Full:
+            try:
+                data_queue.get_nowait()
+                data_queue.put_nowait(packet)
+            except queue.Empty:
+                pass
+
+        t += 1
+        time.sleep(0.5)
+
+    logger.info("[MOCK] Mock CAN reader stopped.")
 
 
 # ---------------------------------------------------------------------------
@@ -167,151 +258,117 @@ def server_sender_thread(
     response_queue: queue.Queue,
     stop_event: threading.Event,
     server_url: str,
+    jwt_token: str,
+    device_id: str,
     attention_monitor: "AttentionMonitor | None" = None,
 ):
     """
-    Reads OBD packets from the shared data_queue, runs danger analysis,
-    merges VIN / DTC metadata, and POSTs a JSON array to the server every
-    SEND_INTERVAL seconds.  The JSON array items each contain ALL telemetry
-    fields so the server never has to infer missing values.
+    Drains OBD packets from data_queue, analyzes dangers, shapes them into
+    the server's VehicleData format, and POSTs to /vehicles/data every
+    SEND_INTERVAL seconds.  Uses JWT Bearer auth and deviceid header.
     """
-    logger.info(f"Server sender started → {server_url}")
+    logger.info(f"[Sender] Server sender started → {server_url}/vehicles/data")
+    if not jwt_token:
+        logger.warning("[Sender] No JWT token — requests will be rejected by the server!")
+
     analyzer = DangerAnalyzer()
+    meta = {"vin": None, "dtcs": []}
     batch: list[dict] = []
-    retry_batch: deque = deque(maxlen=500)  # Bug #3 fix: holds records from failed POSTs
+    retry_buffer: deque = deque(maxlen=500)
     last_send = time.time()
 
-    # --- Request VIN and DTCs once at startup ---
-    # The reader thread needs a moment to connect before it can answer.
+    # Request VIN + DTC once OBD reader is ready
     time.sleep(2)
     try:
         command_queue.put_nowait("REQ_VIN")
         command_queue.put_nowait("REQ_DTC")
         logger.info("[Sender] Requested VIN and DTC from OBD reader...")
     except queue.Full:
-        logger.warning("[Sender] command_queue full — could not request VIN/DTC")
+        pass  # mock mode — no reader listening; that's fine
 
-    # Shared metadata stamped onto every packet
-    meta = {
-        "vin": None,
-        "dtcs": [],
+    headers = {
+        "Authorization": f"Bearer {jwt_token}",
+        "Content-Type":  "application/json",
+        "DeviceId":      device_id,
     }
-    
+
     while not stop_event.is_set():
-        # --- Collect any VIN / DTC responses ---
+        # Collect VIN / DTC responses
         try:
             resp = response_queue.get_nowait()
             if resp["type"] == "VIN_RESPONSE":
                 meta["vin"] = resp["data"]
-                logger.info(f"[Sender] VIN received: {meta['vin']}")
+                logger.info(f"[Sender] VIN: {meta['vin']}")
             elif resp["type"] == "DTC_RESPONSE":
                 meta["dtcs"] = resp["data"]
-                logger.info(f"[Sender] DTCs received: {meta['dtcs']}")
+                logger.info(f"[Sender] DTCs: {meta['dtcs']}")
             response_queue.task_done()
         except queue.Empty:
             pass
 
-        # --- Drain OBD packets from the queue ---
+        # Drain OBD / mock packets
         try:
             raw = data_queue.get(timeout=0.5)
+            raw["dtcs"] = meta["dtcs"]  # stamp latest DTCs
 
-            # Run danger analysis
-            alerts = analyzer.analyze(raw)
-            for a in alerts:
-                if a["severity"] == "CRITICAL":
-                    logger.warning(f"🚨 {a['type']}: {a}")
+            dangers = analyzer.analyze(raw, attention_monitor=attention_monitor)
+            for d in dangers:
+                logger.warning(f"🚨 Danger: {d}")
 
-            # Bug #5 fix: stamp the latest GPS fix onto every telemetry record
-            gps = gps_state.snapshot()
-
-            # Build a complete, explicit telemetry record
-            record = {
-                # Identity / time
-                "timestamp":          raw.get("timestamp"),
-                "vin":                meta["vin"],
-                # Powertrain / motion
-                "speed_kmh":          raw.get("speed_kmh", -1),
-                "fuel_percent":       raw.get("fuel_percent", -1),
-                "battery_v":          raw.get("battery_v", -1),
-                "mileage_km":         raw.get("mileage_km", -1),
-                # Safety
-                "brake_level_percent":raw.get("brake_level_percent", 0.0),
-                "abs_activated":      raw.get("abs_activated", False),
-                "airbags_open":       raw.get("airbags_open", False),
-                # Driver attention
-                "driver_attention":   attention_monitor.state if attention_monitor else None,
-                # Diagnostics
-                "dtcs":               meta["dtcs"],
-                # Danger events produced by the analyzer
-                "alerts":             alerts,
-                # GPS (None fields mean no fix yet)
-                "gps_latitude":       gps["latitude"],
-                "gps_longitude":      gps["longitude"],
-                "gps_altitude_m":     gps["altitude_m"],
-                "gps_speed_knots":    gps["speed_knots"],
-                "gps_satellites":     gps["satellites"],
-                "gps_fix":            gps_state.has_fix,
-            }
-
-            # --- Driver distraction alert ---
-            if attention_monitor and attention_monitor.state == "NOT_AWARE":
-                alerts.append({
-                    "type":      "DRIVER_DISTRACTED",
-                    "severity":  "WARNING",
-                    "timestamp": raw.get("timestamp"),
-                })
-                logger.warning("[Attention] DRIVER_DISTRACTED")
-
+            record = build_vehicle_data(raw, dangers)
             batch.append(record)
             data_queue.task_done()
         except queue.Empty:
             pass
 
-        # --- Device-health check (CAN silence) ---
-        device_alerts = analyzer.check_device_health()
-        if device_alerts:
-            for a in device_alerts:
-                logger.warning(f"🚨 {a['type']}: device silent for {a['seconds_silent']}s")
-            batch.append({
-                "timestamp": datetime.now().isoformat(),
-                "vin":       meta["vin"],
-                "alerts":    device_alerts,
-            })
-
-        # --- Flush batch to server ---
+        # Device-health: CAN silence
+        if analyzer.check_device_health():
+            logger.warning("🚨 Danger: DEVICE_REMOVED (CAN silent)")
+ 
+        # Flush batch to server
         if time.time() - last_send >= SEND_INTERVAL and batch:
-            payload = batch.copy()
+            # Prepend any failed retries
+            if retry_buffer:
+                retry_slice = list(retry_buffer)[:100]
+                payload = retry_slice + batch
+                retry_buffer.clear()
+                logger.info(f"[Sender] Including {len(retry_slice)} retry record(s)")
+            else:
+                payload = batch.copy()
+
             batch.clear()
             last_send = time.time()
+
             try:
-                logger.info(f"[Sender] POSTing {len(payload)} records to server...")
-                resp = requests.post(server_url, json=payload, timeout=5)
+                logger.info(f"[Sender] POSTing {len(payload)} record(s)...")
+                # Server endpoint accepts a single VehicleData object; send the latest
+                # If the server accepts an array adjust here — currently sends last record
+                resp = requests.post(
+                    f"{server_url}/vehicles/data",
+                    json=payload[-1],  # send latest packet
+                    headers=headers,
+                    timeout=5,
+                )
                 if resp.status_code < 300:
-                    logger.info(f"[Sender] Server accepted ({resp.status_code})")
-                    retry_batch.clear()  # Confirmed delivery — discard any held retries
+                    logger.info(f"[Sender] ✓ Server accepted ({resp.status_code})")
+                elif resp.status_code == 401:
+                    logger.error("[Sender] ✗ 401 Unauthorized — JWT token invalid or expired!")
                 else:
-                    logger.warning(f"[Sender] Server {resp.status_code}: {resp.text[:200]}")
-                    # Bug #3 fix: keep failed payload for next send attempt
-                    retry_batch.extend(payload)
+                    logger.warning(f"[Sender] ✗ Server {resp.status_code}: {resp.text[:200]}")
+                    retry_buffer.extend(payload[:-1])  # re-queue all but the last
             except requests.RequestException as e:
-                logger.error(f"[Sender] Server sync failed: {e} — will retry on next flush")
-                # Bug #3 fix: preserve failed records so they are retried next cycle
-                retry_batch.extend(payload)
+                logger.error(f"[Sender] Network error: {e} — will retry next cycle")
+                retry_buffer.extend(payload)
 
-            # Re-inject up to 100 previously failed records into the new batch
-            if retry_batch:
-                retry_count = min(len(retry_batch), 100)
-                batch = list(retry_batch)[:retry_count] + batch
-                logger.info(f"[Sender] Re-queued {retry_count} record(s) from retry buffer")
-
-    # Flush remaining records on shutdown
+    # Final flush on shutdown
     if batch:
         try:
-            requests.post(server_url, json=batch, timeout=3)
+            requests.post(f"{server_url}/vehicles/data",
+                          json=batch[-1], headers=headers, timeout=3)
         except Exception:
             pass
 
-    logger.info("Server sender stopped.")
+    logger.info("[Sender] Server sender stopped.")
 
 
 # ---------------------------------------------------------------------------
@@ -319,26 +376,57 @@ def server_sender_thread(
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Safe Zafira Telemetry Node")
-    parser.add_argument('-i', '--interface', default='can0', help='CAN interface (default: can0)')
-    parser.add_argument('--server-url', default=DEFAULT_SERVER_URL, help='Server endpoint URL')
-    parser.add_argument('--gps-port', default='/dev/serial0', help='GPS UART port (default: /dev/serial0)')
-    parser.add_argument('--camera', type=int, default=0, help='Camera index for attention monitor (default: 0)')
-    parser.add_argument('--headless', action='store_true', help='Run attention monitor without preview window')
+    parser.add_argument('-i', '--interface', default='can0',
+                        help='CAN interface (default: can0)')
+    parser.add_argument('--server-url', default=DEFAULT_SERVER_URL,
+                        help=f'Server base URL (default: {DEFAULT_SERVER_URL})')
+    parser.add_argument('--mock', action='store_true',
+                        help='Use mock CAN data instead of real OBD hardware')
+    parser.add_argument('--skip-ble', action='store_true',
+                        help='Skip BLE pairing (useful with --mock for quick testing)')
+    parser.add_argument('--gps-port', default='/dev/serial0',
+                        help='GPS UART serial port (default: /dev/serial0)')
+    parser.add_argument('--no-gps', action='store_true',
+                        help='Disable GPS reader entirely')
+    parser.add_argument('--camera', type=int, default=0,
+                        help='Camera index for attention monitor (default: 0)')
+    parser.add_argument('--headless', action='store_true',
+                        help='Disable attention monitor preview window (for RPi)')
     args = parser.parse_args()
 
-    logger.info("=" * 50)
-    logger.info("  Safe Zafira — Telemetry Node")
-    logger.info("=" * 50)
+    logger.info("=" * 52)
+    logger.info("   Safe Zafira — Telemetry Node")
+    logger.info("=" * 52)
+    if args.mock:
+        logger.info("   *** MOCK MODE — no CAN hardware required ***")
 
-    # ── Step 1: BLE Pairing (one-time) ───────────────────────────
-    logger.info("[BOOT] Step 1/4: BLE Pairing...")
-    logger.info("[BOOT] Step 1/4: BLE Pairing...")
-    run_ble_pairing()
-    logger.info("[BOOT] BLE Pairing complete ✓")
+    # ── Step 1: BLE Pairing (one-time) ──────────────────────────
+    if not args.skip_ble:
+        logger.info("[BOOT] Step 1/3: BLE Pairing...")
+        run_ble_pairing()
+        logger.info("[BOOT] BLE Pairing complete ✓")
+    else:
+        logger.info("[BOOT] Step 1/3: BLE Pairing skipped (--skip-ble)")
 
-    # ── Steps 2-4: Start threads ──────────────────────────────────
-    # ── Step 2: Driver Attention Monitor ─────────────────────────
-    logger.info(f"[BOOT] Step 2/4: Starting attention monitor (camera={args.camera})...")
+    # ── Step 2: Load JWT + device identity ──────────────────────
+    config    = load_device_config()
+    jwt_token = config.get("jwt_token", "")
+    device_id = config.get("device_id", "unknown-device")
+
+    if jwt_token:
+        logger.info(f"[BOOT] JWT token loaded (device_id={device_id})")
+    else:
+        logger.warning("[BOOT] No JWT token in device_config.json — "
+                       "complete BLE pairing first, or see --skip-ble docs.")
+
+    # ── Step 3: Start threads ────────────────────────────────────
+    data_queue     = queue.Queue(maxsize=100)
+    command_queue  = queue.Queue(maxsize=10)
+    response_queue = queue.Queue(maxsize=10)
+    stop_event     = threading.Event()
+
+    # ── Step 2: Driver Attention Monitor ──────────────────────────
+    logger.info(f"[BOOT] Step 2/4: Starting driver attention monitor (camera={args.camera})...")
     attention_monitor = None
     try:
         attention_monitor = AttentionMonitor(
@@ -350,44 +438,57 @@ def main():
             daemon=True,
         )
         attention_thread.start()
-        logger.info("[BOOT] Attention monitor online ✓")
+        logger.info("[BOOT] Driver attention monitor online ✓")
     except Exception as e:
         logger.warning(f"[BOOT] Attention monitor unavailable: {e} — continuing without it")
 
-    # ── Step 3 & 4: Start OBD + sender threads ───────────────────
-    data_queue = queue.Queue(maxsize=50)
-    command_queue = queue.Queue(maxsize=10)
+    # ── Step 3 & 4: Start OBD + sender threads ─────────────────────────────────
+    data_queue     = queue.Queue(maxsize=100)
+    command_queue  = queue.Queue(maxsize=10)
     response_queue = queue.Queue(maxsize=10)
-    stop_event = threading.Event()
+    stop_event     = threading.Event()
 
-    # Bug #5 fix: start GPS as a background daemon thread
-    logger.info(f"[BOOT] Step 2/4: Starting GPS reader on {args.gps_port}...")
-    gps_daemon = threading.Thread(
-        target=gps_thread,
-        args=(args.gps_port, 9600, stop_event),
-        daemon=True,
-    )
+    gps_daemon = None
+    if args.no_gps:
+        logger.info("[BOOT] Step 3/4: GPS reader disabled (--no-gps)")
+    elif gps_thread is not None:
+        logger.info(f"[BOOT] Step 3/4: Starting GPS reader on {args.gps_port}...")
+        gps_daemon = threading.Thread(
+            target=gps_thread,
+            args=(args.gps_port, 9600, stop_event),
+            daemon=True,
+        )
+    else:
+        logger.warning(f"[BOOT] GPS reader unavailable: {GPS_IMPORT_ERROR} — continuing without GPS")
 
-    logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
-    logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
-    reader = threading.Thread(
-        target=can_reader_thread,
-        args=(args.interface, data_queue, command_queue, response_queue, stop_event),
-        daemon=True,
-    )
+    if args.mock:
+        logger.info("[BOOT] Step 3/4: Starting mock CAN reader...")
+        reader = threading.Thread(
+            target=mock_can_reader_thread,
+            args=(data_queue, stop_event),
+            daemon=True,
+        )
+    else:
+        logger.info(f"[BOOT] Step 3/4: Starting OBD reader on {args.interface}...")
+        reader = threading.Thread(
+            target=can_reader_thread,
+            args=(args.interface, data_queue, command_queue, response_queue, stop_event),
+            daemon=True,
+        )
 
-    logger.info(f"[BOOT] Step 4/4: Starting server sender → {args.server_url}")
     logger.info(f"[BOOT] Step 4/4: Starting server sender → {args.server_url}")
     sender = threading.Thread(
         target=server_sender_thread,
-        args=(data_queue, command_queue, response_queue, stop_event, args.server_url, attention_monitor),
+        args=(data_queue, command_queue, response_queue,
+              stop_event, args.server_url, jwt_token, device_id,
+              attention_monitor),
         daemon=True,
     )
 
-    gps_daemon.start()
+    if gps_daemon is not None:
+        gps_daemon.start()
     reader.start()
     sender.start()
-
     logger.info("[BOOT] All systems online. Press Ctrl+C to stop.")
 
     try:
@@ -397,7 +498,8 @@ def main():
         logger.info("Shutting down...")
         stop_event.set()
     finally:
-        gps_daemon.join(timeout=2)
+        if gps_daemon is not None:
+            gps_daemon.join(timeout=2)
         reader.join(timeout=3)
         sender.join(timeout=3)
         logger.info("Shutdown complete.")
