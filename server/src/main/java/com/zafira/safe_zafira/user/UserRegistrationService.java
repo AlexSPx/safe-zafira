@@ -16,7 +16,7 @@ public class UserRegistrationService
 		this.userRepository = userRepository;
 	}
 
-	public long registerUser(String email, String plainTextPassword) throws UserAlreadyExistsException
+	public long registerUser(String email, String password, String username, String familyName) throws UserAlreadyExistsException
 	{
 		log.info("Attempting to register user: {}", email);
 
@@ -26,9 +26,9 @@ public class UserRegistrationService
 			throw new UserAlreadyExistsException("User with email " + email + " already exists.");
 		}
 
-		String hashedPassword = BCrypt.hashpw(plainTextPassword, BCrypt.gensalt(12));
+		String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt(12));
 
-		long newUserId = userRepository.save(email, hashedPassword);
+		long newUserId = userRepository.save(email, hashedPassword, username, familyName);
 		log.info("Successfully registered user: {} with ID: {}", email, newUserId);
 
 		return newUserId;

@@ -15,31 +15,26 @@ public class SafetyRepository {
 
 	private final NamedParameterJdbcTemplate namedJdbc;
 
-	public List<SafetyPermissionDTO> getPermissionsWhereIWatch(Long myUserId) {
-		String sql = "SELECT owner_id, privacy_level FROM safety_permissions WHERE viewer_id = :myUserId AND status = 'ACTIVE'";
+	public List<SafetyPermissionDTO> getDriversWatchedByMe(Long myGuardianId) {
+		String sql = "SELECT driver_id, privacy_level FROM safety_permissions WHERE guardian_id = :myId AND status = 'ACTIVE'";
 
-		return namedJdbc.query(sql, Map.of("myUserId", myUserId), (rs, rowNum) -> new SafetyPermissionDTO(
-				rs.getLong("owner_id"),
+		return namedJdbc.query(sql, Map.of("myId", myGuardianId), (rs, rowNum) -> new SafetyPermissionDTO(
+				rs.getLong("driver_id"),
 				rs.getString("privacy_level")
 		));
 	}
 
-	public List<SafetyPermissionDTO> getPermissionsWhereIAmWatched(Long myUserId) {
-		String sql = "SELECT viewer_id, privacy_level FROM safety_permissions WHERE owner_id = :myUserId AND status = 'ACTIVE'";
-
-		return namedJdbc.query(sql, Map.of("myUserId", myUserId), (rs, rowNum) -> new SafetyPermissionDTO(
-				rs.getLong("viewer_id"),
-				rs.getString("privacy_level")
-		));
-	}
-
-	public void insertPermission(Long ownerId, Long viewerId, String privacyLevel) {
-		String sql = "INSERT INTO safety_permissions (owner_id, viewer_id, privacy_level, status) " +
-					 "VALUES (:ownerId, :viewerId, :privacyLevel, 'ACTIVE')";
+	public void insertOrUpdatePermission(Long driverId, Long guardianId, String privacyLevel) {
+		String sql = """
+                 INSERT INTO safety_permissions (driver_id, guardian_id, privacy_level, status) 
+                 VALUES (:driverId, :guardianId, :privacyLevel, 'ACTIVE')
+                 ON CONFLICT (driver_id, guardian_id) 
+                 DO UPDATE SET privacy_level = EXCLUDED.privacy_level
+                 """;
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("ownerId", ownerId)
-				.addValue("viewerId", viewerId)
+				.addValue("driverId", driverId)
+				.addValue("guardianId", guardianId)
 				.addValue("privacyLevel", privacyLevel);
 
 		namedJdbc.update(sql, params);

@@ -30,7 +30,7 @@ public class SafetyController
 	{
 		try
 		{
-			guardianService.addGuardianByEmail(myId, email, privacyLevel);
+			guardianService.addMutualGuardiansByEmail(myId, email, privacyLevel);
 			return ResponseEntity.ok("Guardian linked successfully!");
 		}
 		catch (IllegalArgumentException e)
