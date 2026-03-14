@@ -41,6 +41,8 @@ public class VehicleController {
                                   @RequestHeader Map<String, String> headers) {
         String vehicleId = headers.get(VEHICLE_HEADER_NAME);
 
+        log.debug("RECEIVING data for vehicle [{}]", vehicleId);
+        log.debug("Vehicle [{}]", body);
         service.addVehicleData(userId, vehicleId, body);
 
         return HttpStatus.OK;
