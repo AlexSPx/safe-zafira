@@ -7,9 +7,13 @@ import java.util.Optional;
 public record VehicleData(
         Optional<Long> speed,
         Optional<LocationData> location,
-        List<Diagnostic> diagnostics,
-        Optional<Boolean> isCrashed,
-        Optional<Integer> battery,
-        List<String> dangers
+        List<String> diagnostics,
+        Optional<Double> battery,
+        Optional<Double> batteryCar,
+        Optional<Double> fuel,
+        List<Dangers> dangers,
+        Optional<Boolean> airbags,
+        Optional<Boolean> abs,
+        Optional<Boolean> esp
 ) {
 }
