@@ -1,8 +1,8 @@
-package com.zafira.user;
+package com.zafira.safe_zafira.user;
 
-import com.zafira.user.exceptions.UserDoesntExistException;
-import com.zafira.user.exceptions.WrongPasswordException;
-import com.zafira.user.model.User;
+import com.zafira.safe_zafira.user.exceptions.UserDoesntExistException;
+import com.zafira.safe_zafira.user.exceptions.WrongPasswordException;
+import com.zafira.safe_zafira.user.model.User;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
