@@ -9,9 +9,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public class UserRepository {
+public class UserRepository
+{
 
-    private final JdbcTemplate jdbcTemplate;
+	private final JdbcTemplate jdbcTemplate;
 
     public UserRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
