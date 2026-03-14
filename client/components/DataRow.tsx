@@ -4,21 +4,27 @@ interface DataRowProps {
   label: string;
   value: string;
   highlight?: boolean;
+  error?: boolean;
 }
 
-export const DataRow = ({ label, value, highlight = false }: DataRowProps) => (
+export const DataRow = ({
+  label,
+  value,
+  highlight = false,
+  error = false,
+}: DataRowProps) => (
   <XStack
     justifyContent="space-between"
     alignItems="center"
-    paddingVertical="$2"
+    paddingVertical="$3"
   >
-    <SizableText color="$zafiraInputPlaceholderText" size="$4" fontWeight="500">
+    <SizableText color="$textMuted" fontSize={14} fontWeight="500">
       {label}
     </SizableText>
     <SizableText
-      color={highlight ? '#4ade80' : 'white'}
-      size="$4"
-      fontWeight="bold"
+      color={error ? '#ef4444' : highlight ? '#4ade80' : '$textLight'}
+      fontSize={14}
+      fontWeight="600"
     >
       {value}
     </SizableText>

@@ -4,8 +4,7 @@ export const RowSeparator = () => (
   <YStack
     height={1}
     width="100%"
-    backgroundColor="$zafiraButton"
-    marginVertical="$1.5"
+    backgroundColor="$borderColor"
     opacity={0.5}
   />
 );

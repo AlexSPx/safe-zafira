@@ -1,4 +1,4 @@
-import { Card, SizableText } from 'tamagui';
+import { Circle, SizableText, YStack } from 'tamagui';
 
 interface QuickStatProps {
   icon: React.ReactNode;
@@ -7,15 +7,22 @@ interface QuickStatProps {
 }
 
 export const QuickStat = ({ icon, label, value }: QuickStatProps) => (
-  <Card flex={1} backgroundColor="$zafiraCard" padding="$3" borderRadius="$4">
-    <SizableText fontSize={28} mb="$2">
+  <YStack
+    flex={1}
+    backgroundColor="$surface"
+    borderColor="$borderColor"
+    borderWidth={1}
+    padding="$4"
+    borderRadius={20}
+  >
+    <Circle size={36} backgroundColor="$primarySoft" mb="$3">
       {icon}
-    </SizableText>
-    <SizableText color="$zafiraInputPlaceholderText" size="$3">
+    </Circle>
+    <SizableText color="$textMuted" fontSize={13} mb="$1">
       {label}
     </SizableText>
-    <SizableText color="white" size="$6" fontWeight="bold" mt="$1">
+    <SizableText color="$textLight" fontSize={18} fontWeight="700">
       {value}
     </SizableText>
-  </Card>
+  </YStack>
 );

@@ -103,6 +103,7 @@ export default function Dashboard() {
               borderRadius={24}
               mx="$4"
               h={44}
+              onPress={() => router.push('/statistics')}
             >
               <SizableText
                 color="$textLight"

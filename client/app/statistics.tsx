@@ -3,111 +3,144 @@ import {
   YStack,
   XStack,
   SizableText,
-  H2,
-  H4,
   ScrollView,
   Circle,
+  useTheme,
 } from 'tamagui';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QuickStat } from '../components/QuickStat';
 import { DataRow } from '../components/DataRow';
-import { RowSeparator } from '../components/Separator';
-import { Icon } from '../components/Icon';
+import { RowSeparator } from '../components/RowSeparator';
+import {
+  Heart,
+  BatteryCharging,
+  Fuel,
+  Thermometer,
+  Car,
+  CheckCircle2,
+} from 'lucide-react-native';
 
 export default function StatisticsScreen() {
+  const theme = useTheme();
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
       <Stack.Screen
         options={{
-          title: 'Diagnostics & Stats',
-          headerStyle: { backgroundColor: '#57245d' },
-          headerTintColor: 'white',
+          title: 'Diagnostics',
+          headerStyle: { backgroundColor: theme.background?.val },
+          headerTintColor: theme.textLight?.val,
           headerShadowVisible: false,
         }}
       />
 
-      <YStack flex={1} backgroundColor="$zafiraBackground" theme="dark">
+      <YStack flex={1} backgroundColor="$background" px="$4">
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
-          <XStack alignItems="center" gap="$4" marginBottom="$6" marginTop="$2">
+          <XStack alignItems="center" gap="$4" mb="$6">
             <Circle
-              size={80}
-              backgroundColor="$zafiraCard"
-              elevate
-              borderWidth={2}
-              borderColor="$zafiraButton"
+              size={64}
+              backgroundColor="$surface"
+              borderWidth={1}
+              borderColor="$borderColor"
             >
-              <SizableText fontSize={40}>
-                <Icon name="directions-car" size={32} />
-              </SizableText>
+              <Car size={32} color={theme.textLight?.val} />
             </Circle>
             <YStack>
-              <H2 color="white" m={0}>
-                Opel Zafira
-              </H2>
-              <SizableText color="$zafiraInputPlaceholderText" size="$4">
-                Connected • ZAFIRA-MOCK-ID
+              <XStack ai="center" gap="$2">
+                <SizableText color="$textLight" fontSize={24} fontWeight="700">
+                  Toyota Corolla
+                </SizableText>
+                <CheckCircle2 size={18} color="#4ade80" />
+              </XStack>
+              <SizableText color="$textMuted" fontSize={14}>
+                Connected • ZAFIRA-NODE
               </SizableText>
             </YStack>
           </XStack>
 
-          <XStack gap="$3" marginBottom="$3">
+          <SizableText
+            color="$textMuted"
+            fontSize={12}
+            letterSpacing={1.5}
+            mb="$3"
+            fontWeight="600"
+          >
+            OVERVIEW
+          </SizableText>
+          <XStack gap="$3" mb="$3">
             <QuickStat
-              icon={<Icon name="favorite" size={28} color="#ef4444" />}
+              icon={<Heart size={18} color={theme.textLight?.val} />}
               label="Health"
               value="100%"
             />
             <QuickStat
-              icon={
-                <Icon name="battery-charging-full" size={28} color="#4ade80" />
-              }
+              icon={<BatteryCharging size={18} color={theme.textLight?.val} />}
               label="Battery"
               value="12.4V"
             />
           </XStack>
-          <XStack gap="$3" marginBottom="$6">
+          <XStack gap="$3" mb="$6">
             <QuickStat
-              icon={<Icon name="local-gas-station" size={28} color="#facc15" />}
-              label="Fuel"
-              value="32 MPG"
+              icon={<Fuel size={18} color={theme.textLight?.val} />}
+              label="Fuel Level"
+              value="84%"
             />
             <QuickStat
-              icon={<Icon name="thermostat" size={28} color="#60a5fa" />}
-              label="Temp"
-              value="Normal"
+              icon={<Thermometer size={18} color={theme.textLight?.val} />}
+              label="Coolant"
+              value="190°F"
             />
           </XStack>
 
-          <H4 color="white" marginBottom="$3">
-            Vehicle Details
-          </H4>
-          <YStack
-            backgroundColor="$zafiraCard"
-            padding="$4"
-            borderRadius="$4"
-            marginBottom="$6"
+          <SizableText
+            color="$textMuted"
+            fontSize={12}
+            letterSpacing={1.5}
+            mb="$3"
+            fontWeight="600"
           >
-            <DataRow label="Make" value="Opel" />
+            VEHICLE DETAILS
+          </SizableText>
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            paddingHorizontal="$4"
+            borderRadius={20}
+            mb="$6"
+          >
+            <DataRow label="Make" value="Toyota" />
             <RowSeparator />
-            <DataRow label="Model" value="Zafira" />
+            <DataRow label="Model" value="Corolla LE" />
             <RowSeparator />
-            <DataRow label="Year" value="2010" />
+            <DataRow label="Year" value="2020" />
             <RowSeparator />
             <DataRow label="VIN" value="1NXBR1234567890" />
           </YStack>
 
-          <H4 color="white" marginBottom="$3">
-            Live Diagnostics
-          </H4>
-          <YStack backgroundColor="$zafiraCard" padding="$4" borderRadius="$4">
-            <DataRow label="Mileage" value="145,230 mi" />
+          <SizableText
+            color="$textMuted"
+            fontSize={12}
+            letterSpacing={1.5}
+            mb="$3"
+            fontWeight="600"
+          >
+            LIVE DIAGNOSTICS
+          </SizableText>
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            paddingHorizontal="$4"
+            borderRadius={20}
+          >
+            <DataRow label="Mileage" value="45,230 mi" />
             <RowSeparator />
             <DataRow label="Engine RPM" value="Idle (800)" />
-            <RowSeparator />
-            <DataRow label="Coolant Temp" value="190°F" />
             <RowSeparator />
             <DataRow label="System Status" value="No Codes" highlight={true} />
           </YStack>
