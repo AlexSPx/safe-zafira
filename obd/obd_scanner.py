@@ -145,7 +145,9 @@ def parse_vin_response(bus):
 
 
 def trigger_beep(bus, config):
-    """Sends a specific CAN message defined in config to trigger the horn or chime."""
+    """Sends a specific CAN message defined in config to trigger the horn or chime.
+    Repeats the message several times to ensure the car registers the command.
+    """
     beep_cfg = config.get("can_messages", {}).get("beep_trigger", None)
     
     if not beep_cfg:
@@ -164,7 +166,12 @@ def trigger_beep(bus, config):
             data=data_bytes,
             is_extended_id=beep_cfg.get("is_extended_id", False)
         )
-        bus.send(beep_msg)
+        
+        # Car ECUs usually expect a continuous stream for a short duration to trigger chimes/horns
+        for _ in range(5):
+            bus.send(beep_msg)
+            time.sleep(0.1)
+            
     except Exception as e:
         print(f"[CAN Writer] Failed to send beep command: {e}")
 
@@ -311,6 +318,25 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
 
 
 # --- THREAD 2: Data Consumer ---
+def keyboard_listener(command_queue, stop_event):
+    """Simple thread to listen for user keyboard input from terminal."""
+    while not stop_event.is_set():
+        try:
+            # This will block until the user types something and hits Enter.
+            # We use a slight timeout or just accept that it blocks on stdin.
+            user_input = input().strip().lower()
+            if user_input == 'b':
+                print("\n[Consumer] Manual BEEP triggered via keyboard (Enter)!")
+                try:
+                    command_queue.put_nowait("BEEP")
+                except queue.Full:
+                    pass
+        except EOFError:
+            break
+        except Exception:
+            pass
+
+
 def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
     """
     Reads decoded data from the queue and processes it.
@@ -320,28 +346,10 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
     """
     print("[Consumer] Ready to receive data.")
     
-    # Try setting up a manual keyboard listener for 'b' to beep
-    try:
-        from pynput import keyboard
-        
-        def on_press(key):
-            try:
-                if hasattr(key, 'char') and key.char == 'b':
-                    print("\n[Consumer] Manual BEEP triggered via keyboard!")
-                    try:
-                        command_queue.put_nowait("BEEP")
-                    except queue.Full:
-                        pass
-            except Exception:
-                pass
-
-        listener = keyboard.Listener(on_press=on_press)
-        listener.start()
-        print("[Consumer] Keyboard listener active: Press 'b' to send a manual BEEP command.")
-    except ImportError:
-        print("[Consumer] 'pynput' library not found. Manual keyboard trigger disabled.")
-        print("           (Run 'pip install pynput' to enable pressing 'b' to beep)")
-
+    # Start the simple terminal keyboard listener in the background
+    print("[Consumer] Keyboard listener active: Type 'b' and press ENTER to send a manual BEEP command.")
+    kb_thread = threading.Thread(target=keyboard_listener, args=(command_queue, stop_event), daemon=True)
+    kb_thread.start()
 
     # Example: Fire off a request to the Reader Thread to get the VIN initially
     # Give the reader thread a slight moment to start up first
