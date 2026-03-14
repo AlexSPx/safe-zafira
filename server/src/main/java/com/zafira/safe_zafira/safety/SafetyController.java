@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/guardian")
+@RequestMapping("/api/family")
 @AllArgsConstructor
 @Slf4j
 public class SafetyController
@@ -18,7 +18,7 @@ public class SafetyController
 
 	private final GuardianService guardianService;
 
-	@GetMapping("/dashboard/{myId}")
+	@GetMapping("/all/{myId}")
 	public ResponseEntity<List<GuardedMemberSummary>> getDashboard(@PathVariable Long myId)
 	{
 		List<GuardedMemberSummary> dashboard = guardianService.getFamilyDashboard(myId);
