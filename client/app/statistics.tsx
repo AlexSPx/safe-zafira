@@ -46,6 +46,7 @@ export default function StatisticsScreen() {
               backgroundColor="$surface"
               borderWidth={1}
               borderColor="$borderColor"
+              onPress={() => router.push('/(tabs)/dashboard')}
             >
               <Car size={32} color={theme.textLight?.val} />
             </Circle>

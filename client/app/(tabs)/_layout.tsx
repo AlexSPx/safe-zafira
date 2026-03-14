@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import {
   LayoutDashboard,
-  LogOut,
   MapPin,
   User,
   Users,
