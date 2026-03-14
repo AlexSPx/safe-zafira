@@ -4,7 +4,9 @@ import com.zafira.safe_zafira.safety.model.FamilyMemberStatus;
 import com.zafira.safe_zafira.safety.model.GuardedMemberSummary;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,17 +21,27 @@ public class FamilyController
 	private final FamilyService familyService;
 
 	@GetMapping("/all/{myId}")
-	public ResponseEntity<List<GuardedMemberSummary>> getDashboard(@PathVariable Long myId)
+	public ResponseEntity<List<GuardedMemberSummary>> getDashboard(@AuthenticationPrincipal Long myId)
 	{
+		if (myId == null)
+		{
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
 		List<GuardedMemberSummary> dashboard = familyService.getFamilyDashboard(myId);
 		return ResponseEntity.ok(dashboard);
 	}
 
 	@GetMapping("/{myId}/member/{memberId}")
 	public ResponseEntity<FamilyMemberStatus> getMemberStatus(
-			@PathVariable Long myId,
+			@AuthenticationPrincipal Long myId,
 			@PathVariable Long memberId)
 	{
+		if (myId == null)
+		{
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
 		try
 		{
 			FamilyMemberStatus status = familyService.getMemberStatus(myId, memberId);
@@ -44,10 +56,15 @@ public class FamilyController
 
 	@PostMapping("/{myId}/add-by-email")
 	public ResponseEntity<String> addGuardian(
-			@PathVariable Long myId,
+			@AuthenticationPrincipal Long myId,
 			@RequestParam String email,
 			@RequestParam String privacyLevel)
 	{
+		if (myId == null)
+		{
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
 		try
 		{
 			familyService.addMutualGuardiansByEmail(myId, email, privacyLevel);
