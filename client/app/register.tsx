@@ -3,7 +3,14 @@ import { YStack, XStack, Input, SizableText, Square, useTheme } from 'tamagui';
 import { Link, Stack, router } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, UserPlus, User, Mail, Lock, ShieldCheck } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  UserPlus,
+  User,
+  Mail,
+  Lock,
+  ShieldCheck,
+} from 'lucide-react-native';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -44,24 +51,49 @@ export default function RegisterScreen() {
           <Square size={40} backgroundColor="transparent" />
         </XStack>
 
-        <YStack mt="$3" mb="$5" backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={20} p="$4" gap="$2">
-          <SizableText color="$textMuted" fontSize={13} fontWeight="600" letterSpacing={1}>
+        <YStack
+          mt="$3"
+          mb="$5"
+          backgroundColor="$surface"
+          borderColor="$borderColor"
+          borderWidth={1}
+          borderRadius={20}
+          p="$4"
+          gap="$2"
+        >
+          <SizableText
+            color="$textMuted"
+            fontSize={13}
+            fontWeight="600"
+            letterSpacing={1}
+          >
             CREATE ACCOUNT
           </SizableText>
           <SizableText color="$textLight" fontSize={14} lineHeight={22}>
-            Set up your account to pair devices and access your vehicle dashboard.
+            Set up your account to pair devices and access your vehicle
+            dashboard.
           </SizableText>
         </YStack>
 
         <YStack width="100%" maxWidth={420} alignSelf="center" gap="$3">
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <User size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">USERNAME</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                USERNAME
+              </SizableText>
             </XStack>
             <Input
               unstyled
-              placeholder="Choose username"
+              placeholder="Enter username"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -69,31 +101,50 @@ export default function RegisterScreen() {
             />
           </YStack>
 
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <Mail size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">EMAIL</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                EMAIL
+              </SizableText>
             </XStack>
             <Input
               unstyled
-              placeholder="you@example.com"
+              placeholder="Enter email"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               color="$textLight"
-            
             />
           </YStack>
 
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <Lock size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">PASSWORD</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                PASSWORD
+              </SizableText>
             </XStack>
             <Input
               unstyled
-              placeholder="Create password"
+              placeholder="Enter password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -101,10 +152,20 @@ export default function RegisterScreen() {
             />
           </YStack>
 
-          <YStack backgroundColor="$surface" borderColor="$borderColor" borderWidth={1} borderRadius={16} px="$3" py="$2" gap="$2">
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            borderRadius={16}
+            px="$3"
+            py="$2"
+            gap="$2"
+          >
             <XStack ai="center" gap="$2">
               <ShieldCheck size={14} color={theme.textMuted?.val} />
-              <SizableText color="$textMuted" fontSize={12} fontWeight="600">CONFIRM PASSWORD</SizableText>
+              <SizableText color="$textMuted" fontSize={12} fontWeight="600">
+                CONFIRM PASSWORD
+              </SizableText>
             </XStack>
             <Input
               unstyled
@@ -128,18 +189,22 @@ export default function RegisterScreen() {
               gap="$2"
               pressStyle={{ backgroundColor: '$buttonHover' }}
             >
-              <UserPlus size={18} color={theme.textDark?.val} />
-              <SizableText color="$textDark" fontSize={15} fontWeight="700">
+              <UserPlus size={18} color={theme.textLight?.val} />
+              <SizableText color="$textLight" fontSize={15} fontWeight="700">
                 Create Account
               </SizableText>
             </XStack>
           </TouchableOpacity>
 
           <XStack justifyContent="center" marginTop="$3" gap="$2">
-            <SizableText color="$textMuted">Already have an account?</SizableText>
+            <SizableText color="$textMuted">
+              Already have an account?
+            </SizableText>
             <Link href="/login" asChild>
               <TouchableOpacity>
-                <SizableText color="$textLight" fontWeight="700">Log in</SizableText>
+                <SizableText color="$textLight" fontWeight="700">
+                  Log in
+                </SizableText>
               </TouchableOpacity>
             </Link>
           </XStack>

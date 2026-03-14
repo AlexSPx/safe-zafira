@@ -9,7 +9,7 @@ interface QuickStatProps {
 export const QuickStat = ({ icon, label, value }: QuickStatProps) => (
   <YStack
     flex={1}
-    backgroundColor="$surface"
+    backgroundColor="#6a456e"
     borderColor="$borderColor"
     borderWidth={1}
     padding="$4"
@@ -18,7 +18,7 @@ export const QuickStat = ({ icon, label, value }: QuickStatProps) => (
     <Circle size={36} backgroundColor="$primarySoft" mb="$3">
       {icon}
     </Circle>
-    <SizableText color="$textMuted" fontSize={13} mb="$1">
+    <SizableText color="$textLight" fontSize={13} mb="$1">
       {label}
     </SizableText>
     <SizableText color="$textLight" fontSize={18} fontWeight="700">

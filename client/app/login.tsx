@@ -52,7 +52,7 @@ export default function LoginScreen() {
             WELCOME BACK
           </SizableText>
           <SizableText color="$textLight" fontSize={14} lineHeight={22}>
-            Sign in to access your garage and manage connected telemetry nodes.
+            Sign in to access your vehicle and manage connected telemetry nodes.
           </SizableText>
         </YStack>
 
@@ -120,8 +120,8 @@ export default function LoginScreen() {
               gap="$2"
               pressStyle={{ backgroundColor: '$buttonHover' }}
             >
-              <LogIn size={18} color={theme.textDark?.val} />
-              <SizableText color="$textDark" fontSize={15} fontWeight="700">
+              <LogIn size={18} color={theme.textLight?.val} />
+              <SizableText color="$textLight" fontSize={15} fontWeight="700">
                 Login
               </SizableText>
             </XStack>

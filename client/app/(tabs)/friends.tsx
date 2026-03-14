@@ -66,7 +66,7 @@ export default function FriendsScreen() {
             </SizableText>
             <TouchableOpacity onPress={() => setIsModalVisible(true)}>
               <XStack
-                backgroundColor="$primarySoft"
+                backgroundColor="$buttonSecondary"
                 px="$4"
                 py="$2"
                 borderRadius={20}
@@ -197,7 +197,7 @@ export default function FriendsScreen() {
 
             <Button
               size="$4"
-              backgroundColor="$primarySoft"
+              backgroundColor="$button"
               onPress={handleAddFriend}
               pressStyle={{ opacity: 0.8 }}
             >
