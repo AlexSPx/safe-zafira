@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   postgres:
-    image: 'postgres:15'
+    image: 'timescale/timescaledb:latest-pg15'
+    labels:
+      org.springframework.boot.service-connection: postgres
+    command: postgres -c shared_preload_libraries=timescaledb
     environment:
       - POSTGRES_DB=zafira_db
       - POSTGRES_USER=zafira

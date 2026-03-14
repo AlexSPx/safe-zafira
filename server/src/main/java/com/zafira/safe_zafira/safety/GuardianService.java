@@ -1,5 +1,6 @@
 package com.zafira.safe_zafira.safety;
 
+import com.zafira.safe_zafira.model.Dangers;
 import com.zafira.safe_zafira.user.UserRepository;
 import com.zafira.safe_zafira.user.model.User;
 import com.zafira.safe_zafira.model.VehicleData;
@@ -47,10 +48,10 @@ public class GuardianService
 					ownerId,
 					"Name Pending",
 					user.getEmail(),
-					rawData.isCrashed().orElse(false),
+					rawData.dangers().contains(Dangers.CRASH_DETECTED),
 					rawData.location().orElse(null),
 					"FULL_ACCESS".equals(privacy) ? rawData.speed().orElse(null) : null,
-					rawData.battery().orElse(null),
+					rawData.battery().map(Double::intValue).orElse(null),
 					privacy
 			));
 		}
