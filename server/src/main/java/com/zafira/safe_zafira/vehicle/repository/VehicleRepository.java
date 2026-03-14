@@ -150,7 +150,7 @@ public class VehicleRepository {
 				rs.getString("vin"),
 				rs.getString("make"),
 				rs.getString("model"),
-				rs.getObject("batteryVoltage", Double.class)
+				rs.getBigDecimal("batteryVoltage")
 		), userId);
 	}
 
