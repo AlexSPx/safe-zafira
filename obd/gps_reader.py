@@ -88,6 +88,11 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
                 time.sleep(1)
                 continue
 
+            # Throttle: GPS outputs ~5-7 sentences per 1s burst at 9600 baud.
+            # Pacing reads at ~10 Hz prevents exhausting the RPi UART buffer
+            # while still capturing every sentence.
+            time.sleep(0.1)
+
             # readline() returns b'' on timeout — that's normal, just loop
             if not raw or not raw.strip():
                 continue
