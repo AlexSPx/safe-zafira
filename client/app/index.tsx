@@ -30,7 +30,7 @@ export default function Index() {
           </Link>
           
           <Button 
-            onPress={() => router.push('/dashboard')} 
+            onPress={() => router.push('/(tabs)/dashboard')} 
             size="$5" 
             backgroundColor="$button" 
             pressStyle={{ backgroundColor: '$buttonHover' }}

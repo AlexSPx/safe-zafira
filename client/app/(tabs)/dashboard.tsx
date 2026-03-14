@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
 import { ScrollView, TouchableOpacity } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { useBLEContext } from '../context/BLEContext';
+import { router } from 'expo-router';
+import { useBLEContext } from '../../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Settings, Wrench, Plus } from 'lucide-react-native';
 
@@ -33,8 +33,6 @@ export default function Dashboard() {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
             <YStack f={1} backgroundColor="$background">
-                <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
-
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
                     {/* Top Bar */}
                     <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">

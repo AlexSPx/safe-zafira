@@ -35,6 +35,7 @@
     },
     "plugins": [
       "expo-router",
+      "react-native-bottom-tabs",
       [
         "react-native-ble-plx",
         {
