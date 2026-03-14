@@ -64,15 +64,15 @@ export default function LoginScreen() {
           pressStyle={{ backgroundColor: '$zafiraButtonHover' }}
           hoverStyle={{ backgroundColor: '$zafiraButtonHover' }}
         >
-          Login
+          <SizableText whiteSpace="normal" numberOfLines={0}>Login</SizableText>
         </Button>
 
         <XStack justifyContent="center" marginTop="$4" gap="$2">
-          <Text color="$textLight">Don't have an account?</Text>
+          <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight">Don't have an account?</SizableText>
           <Link href="/register" asChild>
-            <Text color="$textLight" fontWeight="bold">
+            <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight" fontWeight="bold">
               Register
-            </Text>
+            </SizableText>
           </Link>
         </XStack>
       </YStack>

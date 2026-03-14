@@ -101,11 +101,11 @@ export default function RegisterScreen() {
         </Button>
 
         <XStack justifyContent="center" marginTop="$4" gap="$2">
-          <Text color="$textLight">Already have an account?</Text>
+          <SizableText color="$textLight">Already have an account?</SizableText>
           <Link href="/login" asChild>
-            <Text color="$textLight" fontWeight="bold">
+            <SizableText color="$textLight" numberOfLines={0} fontWeight="bold">
               Log in
-            </Text>
+            </SizableText>
           </Link>
         </XStack>
       </YStack>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { YStack, XStack, Text, H1, H4, Button, Card, Separator, Square, Circle } from 'tamagui';
+import { YStack, XStack, SizableText, Text, H1, H4, Button, Card, Separator, Square, Circle } from 'tamagui';
 import { ScrollView } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
@@ -16,12 +16,12 @@ export default function Dashboard() {
             <YStack f={1} backgroundColor="$background" ai="center" jc="center" p="$4">
                 <Stack.Screen options={{ title: 'Safe Zafira Dashboard', headerBackVisible: false }} />
                 <Square size={120} backgroundColor="$primarySoft" borderRadius="$9" mb="$6">
-                    <Text fontSize={64}>🚙</Text>
+                    <SizableText   fontSize={64}>🚙</SizableText>
                 </Square>
                 <H1 textAlign="center" mb="$2">No Vehicles Found</H1>
-                <Text color="$textMuted" textAlign="center" mb="$6">
+                <SizableText   color="$textMuted" textAlign="center" mb="$6">
                     Connect your OBD device or pair your car's Bluetooth to start tracking your safety analytics.
-                </Text>
+                </SizableText>
                 <Button size="$5" theme="active" onPress={handlePair} width="100%">
                     Pair New Vehicle 📱
                 </Button>
@@ -37,10 +37,10 @@ export default function Dashboard() {
                 <XStack jc="space-between" ai="center" mt="$2" mb="$6">
                     <YStack>
                         <H1 size="$8">Welcome Back!</H1>
-                        <Text color="$textMuted" mt="$1">Here's your vehicle status</Text>
+                        <SizableText   color="$textMuted" mt="$1">Here's your vehicle status</SizableText>
                     </YStack>
                     <Circle size={48} backgroundColor="$primarySoft" onPress={disconnectFromDevice}>
-                         <Text fontSize={24}>⚙️</Text>
+                         <SizableText   fontSize={24}>⚙️</SizableText>
                     </Circle>
                 </XStack>
 
@@ -50,10 +50,10 @@ export default function Dashboard() {
                         <XStack jc="space-between" ai="center" p="$4">
                             <YStack>
                                 <H4 color="$color">{connectedDevice.name || connectedDevice.localName || 'Zafira Node'}</H4>
-                                <Text color="$textMuted">ID: {connectedDevice.id}</Text>
+                                <SizableText   color="$textMuted">ID: {connectedDevice.id}</SizableText>
                             </YStack>
                             <Square size={44} backgroundColor="$primarySoft" borderRadius="$4">
-                                    <Text fontSize={24}>🚙</Text>
+                                    <SizableText   fontSize={24}>🚙</SizableText>
                             </Square>
                         </XStack>
                     </Card.Header>
