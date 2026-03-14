@@ -1,6 +1,8 @@
 package com.zafira.safe_zafira.user;
 
 import com.zafira.safe_zafira.user.model.User;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -28,6 +30,7 @@ public class UserRepository
 			rs.getString("family_name")
 	);
 
+	@Cacheable(value = "users", key = "#email")
 	public Optional<User> findByEmail(String email)
 	{
 		String sql = "SELECT id, email, password_hash, username, first_name, family_name FROM users WHERE email = ?";
@@ -48,6 +51,7 @@ public class UserRepository
 		return jdbcTemplate.queryForObject(sql, userRowMapper, email, passwordHash, username, firstName, familyName);
 	}
 
+	@Cacheable(value = "users", key = "#id")
 	public Optional<User> findById(long id)
 	{
 		String sql = "SELECT id, email, password_hash, username, first_name, family_name FROM users WHERE id = ?";
@@ -57,6 +61,7 @@ public class UserRepository
 		return users.stream().findFirst();
 	}
 
+	@Cacheable(value = "userExists", key = "#id")
 	public boolean userExistsById(long id)
 	{
 		String sql = "SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)";
