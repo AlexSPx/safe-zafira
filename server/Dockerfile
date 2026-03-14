@@ -9,7 +9,7 @@ COPY src ./src
 
 RUN mvn clean package -DskipTests
 
-FROM openjdk:25-jdk-slim
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 
