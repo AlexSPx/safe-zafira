@@ -4,10 +4,11 @@ import {
   XStack,
   Input,
   SizableText,
+  Button,
   ScrollView,
   useTheme,
 } from 'tamagui';
-import { Link, Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -18,26 +19,79 @@ import {
   ShieldCheck,
   UserRoundPen,
 } from 'lucide-react-native';
+import { ApiError, apiService } from '../services/authService';
+import { saveJwtToSecureStore } from '../services/jwtSecureStore';
+import { setAuthStore } from '../stores/authStore';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [familyName, setFamilyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const theme = useTheme();
 
-  const handleRegister = () => {
-    console.log('Mock register request:', {
-      username,
-      email,
-      password,
-      confirmPassword,
-    });
+  const handleRegister = async () => {
     if (password !== confirmPassword) {
-      console.warn('Passwords do not match!');
+      setErrorMessage('Passwords do not match.');
       return;
+    }
+
+    if (
+      !username.trim() ||
+      !firstName.trim() ||
+      !familyName.trim() ||
+      !email.trim() ||
+      !password.trim()
+    ) {
+      setErrorMessage('Please fill in all fields.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await apiService.register({
+        username: username.trim(),
+        firstName: firstName.trim(),
+        familyName: familyName.trim(),
+        email: email.trim(),
+        password,
+      });
+
+      const {
+        token,
+        userId,
+        email: responseEmail,
+        username: responseUsername,
+        firstName: responseFirstName,
+        familyName: responseFamilyName,
+      } = response;
+      setAuthStore(
+        {
+          userId,
+          email: responseEmail,
+          username: responseUsername,
+          firstName: responseFirstName,
+          familyName: responseFamilyName,
+        },
+        token,
+      );
+      await saveJwtToSecureStore(token);
+
+      router.replace('/(tabs)/dashboard');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Registration failed. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -170,8 +224,8 @@ export default function RegisterScreen() {
                 <Input
                   unstyled
                   placeholder="Enter last name"
-                  value={lastName}
-                  onChangeText={setLastName}
+                  value={familyName}
+                  onChangeText={setFamilyName}
                   autoCapitalize="none"
                   color="$textLight"
                 />
@@ -265,40 +319,38 @@ export default function RegisterScreen() {
                 />
               </YStack>
 
-              <TouchableOpacity onPress={handleRegister}>
-                <XStack
-                  mt="$2"
-                  backgroundColor="$button"
-                  borderRadius={16}
-                  py="$3"
-                  px="$4"
-                  ai="center"
-                  jc="center"
-                  gap="$2"
-                  pressStyle={{ backgroundColor: '$buttonHover' }}
-                >
-                  <UserPlus size={18} color={theme.textLight?.val} />
-                  <SizableText
-                    color="$textLight"
-                    fontSize={15}
-                    fontWeight="700"
-                  >
-                    Create Account
-                  </SizableText>
-                </XStack>
-              </TouchableOpacity>
+              {errorMessage ? (
+                <SizableText color="$red10" fontSize={13}>
+                  {errorMessage}
+                </SizableText>
+              ) : null}
+
+              <Button
+                mt="$2"
+                backgroundColor="$button"
+                borderRadius={16}
+                opacity={isSubmitting ? 0.7 : 1}
+                pressStyle={{ backgroundColor: '$buttonHover' }}
+                onPress={() => {
+                  void handleRegister();
+                }}
+                disabled={isSubmitting}
+                icon={<UserPlus size={18} color={theme.textLight?.val} />}
+              >
+                <SizableText color="$textLight" fontSize={15} fontWeight="700">
+                  {isSubmitting ? 'Creating account...' : 'Create Account'}
+                </SizableText>
+              </Button>
 
               <XStack justifyContent="center" marginTop="$3" gap="$2">
                 <SizableText color="$textMuted">
                   Already have an account?
                 </SizableText>
-                <Link href="/login" asChild>
-                  <TouchableOpacity>
-                    <SizableText color="$textLight" fontWeight="700">
-                      Log in
-                    </SizableText>
-                  </TouchableOpacity>
-                </Link>
+                <TouchableOpacity onPress={() => router.push('/login')}>
+                  <SizableText color="$textLight" fontWeight="700">
+                    Log in
+                  </SizableText>
+                </TouchableOpacity>
               </XStack>
             </YStack>
           </YStack>
