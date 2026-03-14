@@ -25,7 +25,7 @@ public class VehicleRepository {
     }
 
     public Long save(VehicleInitiationRequest vehicleData) {
-        String sql = "INSERT INTO vehicle (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO vehicle (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?) RETURNING id";
 
         return jdbcTemplate.queryForObject(
                 sql,
