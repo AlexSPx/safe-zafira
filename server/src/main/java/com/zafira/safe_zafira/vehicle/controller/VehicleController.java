@@ -1,6 +1,7 @@
 package com.zafira.safe_zafira.vehicle.controller;
 
 import com.zafira.safe_zafira.model.VehicleData;
+import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.telemetry.speed.SpeedLimitService;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.safe_zafira.vehicle.service.VehicleService;
@@ -69,6 +70,17 @@ public class VehicleController {
         var maxSpeed = speedLimitService.getSpeedLimit(location.get().x(), location.get().y());
 
         return ResponseEntity.status(HttpStatus.OK).body(maxSpeed);
+    }
+
+    @GetMapping("/api/vehicles")
+    public ResponseEntity<VehicleDataClient> getLatestVehicleData(@AuthenticationPrincipal Long userId,
+                                                                  @RequestHeader Map<String, String> headers) {
+        String vehicleId = headers.get(VEHICLE_HEADER_NAME);
+        if (userId == null || vehicleId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(service.getCurrentClientVehicleData(vehicleId).orElse(null));
     }
 
     @ExceptionHandler(InvalidVehicleException.class)

@@ -1,8 +1,11 @@
 package com.zafira.safe_zafira.vehicle.service;
 
+import com.zafira.safe_zafira.model.Dangers;
 import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.model.VehicleData;
+import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.user.UserRepository;
+import com.zafira.safe_zafira.vehicle.VehicleStateCache;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import com.zafira.safe_zafira.vehicle.repository.VehicleRepository;
@@ -16,54 +19,85 @@ import java.util.Optional;
 @Service
 @Slf4j
 @AllArgsConstructor
-public class VehicleService
-{
+public class VehicleService {
 
-	private final UserRepository userRepository;
-	private final VehicleRepository vehicleRepository;
+    private final UserRepository userRepository;
+    private final VehicleRepository vehicleRepository;
+    private final LocationExtrapolationService extrapolationService;
+    private final VehicleStateCache vehicleStateCache;
 
-	@Transactional
-	public void registerVehicle(long userId, VehicleInitiationRequest vehicleData)
-	{
-		if (!userRepository.userExistsById(userId))
-		{
-			log.error("User with id [{}] does not exist in the db", userId);
-			throw new IllegalArgumentException("User not found");
-		}
+    @Transactional
+    public void registerVehicle(long userId, VehicleInitiationRequest vehicleData) {
+        if (!userRepository.userExistsById(userId)) {
+            log.error("User with id [{}] does not exist in the db", userId);
+            throw new IllegalArgumentException("User not found");
+        }
 
-		log.debug("Saving vehicle and linking to user [{}]", userId);
-		long vehicleId = vehicleRepository.save(vehicleData);
-		vehicleRepository.addUserVehicle(userId, vehicleId);
-	}
+        log.debug("Saving vehicle and linking to user [{}]", userId);
+        long vehicleId = vehicleRepository.save(vehicleData);
+        vehicleRepository.addUserVehicle(userId, vehicleId);
+    }
 
-	@Transactional
-	public void addVehicleData(Long userId, String vehicleId, VehicleData data) throws InvalidVehicleException
-	{
-		if (!userRepository.userExistsById(userId))
-		{
-			log.error("User with id [{}] does not exist in the db", userId);
-			throw new IllegalArgumentException("User not found");
-		}
+    @Transactional
+    public void addVehicleData(Long userId, String vehicleId, VehicleData data) throws InvalidVehicleException {
+        if (!userRepository.userExistsById(userId)) {
+            log.error("User with id [{}] does not exist in the db", userId);
+            throw new IllegalArgumentException("User not found");
+        }
 
-		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId))
-		{
-			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
-			throw new InvalidVehicleException("Vehicle not found");
-		}
+        if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+            log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+            throw new InvalidVehicleException("Vehicle not found");
+        }
 
-		log.debug("Entering telemetry data for vehicle [{}]", vehicleId);
-		vehicleRepository.enterData(vehicleId, data);
-	}
+        log.debug("Entering telemetry data for vehicle [{}]", vehicleId);
+        vehicleRepository.enterData(vehicleId, data);
+    }
 
-	public Optional<LocationData> getLastLocationDataForDevice(String vehicleId) {
+    public Optional<LocationData> getLastLocationDataForDevice(String vehicleId) {
 
-		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId))
-		{
-			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
-			throw new InvalidVehicleException("Vehicle not found");
-		}
+        if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+            log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+            throw new InvalidVehicleException("Vehicle not found");
+        }
 
-		log.debug("Getting the location data for vehicle [{}]", vehicleId);
-		return Optional.of(vehicleRepository.getLatestLocationByVehicleNo(vehicleId));
-	}
+        log.debug("Getting the location data for vehicle [{}]", vehicleId);
+        return Optional.of(vehicleRepository.getLatestLocationByVehicleNo(vehicleId));
+    }
+
+    public Optional<VehicleDataClient> getCurrentClientVehicleData(String vehicleId) {
+        if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+            log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+            throw new InvalidVehicleException("Vehicle not found");
+        }
+
+        log.debug("Getting the vehicle data for vehicle [{}]", vehicleId);
+        var vehicleData = vehicleRepository.getLatestTelemetryByVehicleNo(vehicleId);
+        var vehicleDataClient = new VehicleDataClient(
+                vehicleData.speed(),
+                vehicleData.location(),
+                vehicleData.diagnostics(),
+                vehicleData.battery(),
+                vehicleData.batteryCar(),
+                vehicleData.fuel(),
+                vehicleData.dangers(),
+                vehicleData.airbags(),
+                vehicleData.abs(),
+                vehicleData.esp(),
+                vehicleStateCache.get(vehicleId)
+        );
+
+        return Optional.of(vehicleDataClient);
+    }
+
+    public LocationData getEstimatedLocation(String vehicleId) {
+        if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+            log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+            throw new InvalidVehicleException("Vehicle not found");
+        }
+
+        log.debug("Extrapolating location for vehicle [{}]", vehicleId);
+        var points = vehicleRepository.getRecentLocationPoints(vehicleId, 30);
+        return extrapolationService.extrapolate(points);
+    }
 }
