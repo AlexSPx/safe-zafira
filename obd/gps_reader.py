@@ -13,6 +13,8 @@ import logging
 import serial
 import pynmea2
 import argparse
+import os
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,8 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
     logger.info(f"[GPS] Starting on {port} @ {baudrate} baud.")
     
     try:
-        ser = serial.Serial(port=port, baudrate=baudrate, timeout=1)
+        # No timeout so readline() blocks naturally until a full sentence arrives
+        ser = serial.Serial(port=port, baudrate=baudrate)
     except Exception as e:
         logger.error(f"[GPS] Cannot open serial port {port}. (Error: {e})")
         logger.error("[GPS] Check that the port exists on this machine and is readable.")
@@ -83,7 +86,7 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
 
             line = raw.decode("ascii", errors="replace").strip()
 
-            if not line.startswith("$GP"):
+            if not line.startswith("$"):
                 continue
 
             try:
@@ -133,9 +136,21 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
 # Standalone entry point
 # ---------------------------------------------------------------------------
 def _standalone_main():
+    # Ensure logs directory exists
+    os.makedirs("logs", exist_ok=True)
+    
+    # Configure root logger
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s",
                         datefmt="%H:%M:%S")
+
+    # Set up dedicated file logger for GPS points
+    track_logger = logging.getLogger("gps_track")
+    track_logger.propagate = False
+    track_handler = logging.FileHandler("logs/gps_track.jsonl", mode="a")
+    track_logger.addHandler(track_handler)
+    track_logger.setLevel(logging.INFO)
+
     parser = argparse.ArgumentParser(description="GY-NEO6MV2 GPS Module NMEA Reader")
     parser.add_argument("-p", "--port", default="/dev/serial0",
                         help="Serial port path (default: /dev/serial0)")
@@ -153,11 +168,22 @@ def _standalone_main():
             time.sleep(1)
             snap = gps_state.snapshot()
             if gps_state.has_fix:
+                # Print to terminal
                 print(f"[{snap['timestamp_utc']}]  "
                       f"LAT={snap['latitude']:.6f}  LON={snap['longitude']:.6f}  "
                       f"ALT={snap['altitude_m']}m  "
                       f"SPD={snap['speed_knots']} kn  "
                       f"SATS={snap['satellites']}")
+                
+                # Append to file
+                track_logger.info(json.dumps({
+                    "time": snap['timestamp_utc'],
+                    "lat": snap['latitude'],
+                    "lon": snap['longitude'],
+                    "alt_m": snap['altitude_m'],
+                    "speed_knots": snap['speed_knots'],
+                    "sats": snap['satellites']
+                }))
             else:
                 print(f"[No Fix]  satellites={snap['satellites']}  quality={snap['fix_quality']}")
     except KeyboardInterrupt:
