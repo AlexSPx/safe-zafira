@@ -1,81 +1,44 @@
-# Node.js
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
-yarn-debug.log
-.pnp
-.pnp.js
 
-# React Native
+# Expo
 .expo/
-__generated__/
+dist/
+web-build/
+expo-env.d.ts
 
-# Bundle artifacts
-*.jsbundle
-*.bundle
-*.bundle.map
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# iOS
-ios/build/
-ios/Pods/
-ios/.symlinks/
-ios/DerivedData/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcbkptlist
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
+# builds
+build-*
 
-# Android
-android/.gradle/
-android/app/build/
-android/build/
-android/local.properties
-android/.idea/
+# Metro
+.metro-health-check*
 
-# Windows
-windows/.vs/
-windows/build/
-windows/AppPackages/
-windows/BundleArtifacts/
-windows/x86/
-windows/x64/
-windows/ARM/
-windows/ARM64/
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# Fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
-
-# CodePush
-.code-push
-
-# BUCK
-buck-out/
-\.buckd/
-*.keystore
-!debug.keystore
-
-# Testing
-coverage/
-
-# Mac/OS
+# macOS
 .DS_Store
-Thumbs.db
+*.pem
 
-# Misc
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.history/
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
