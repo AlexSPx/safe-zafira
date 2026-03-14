@@ -3,6 +3,7 @@ package com.zafira.safe_zafira.vehicle.repository;
 import com.zafira.safe_zafira.model.Dangers;
 import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.model.VehicleData;
+import com.zafira.safe_zafira.vehicle.model.Vehicle;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -108,6 +109,25 @@ public class VehicleRepository
 				rs.getDouble("latitude"),
 				rs.getDouble("longitude")
 		), vehicleNo);
+	}
+
+	public List<Vehicle> getAllVehiclesByUserId(Long userId)
+	{
+		String sql = """
+				SELECT v.id, v.vehicle_no, v.vin, v.make, v.model, v.batteryVoltage
+				FROM vehicles v
+				JOIN user_vehicle uv ON v.id = uv.vehicle_id
+				WHERE uv.user_id = ?
+				""";
+
+		return jdbcTemplate.query(sql, (rs, _) -> new Vehicle(
+				rs.getLong("id"),
+				rs.getString("vehicle_no"),
+				rs.getString("vin"),
+				rs.getString("make"),
+				rs.getString("model"),
+				rs.getObject("batteryVoltage", Double.class)
+		), userId);
 	}
 
 	public VehicleData getLatestTelemetryByUserId(Long userId)
