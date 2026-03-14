@@ -5,8 +5,8 @@ services:
     image: 'postgres:15'
     environment:
       - POSTGRES_DB=zafira_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=your_postgres_password
+      - POSTGRES_USER=zafira
+      - POSTGRES_PASSWORD=zafira
     ports:
       - '5432:5432'
     volumes:
@@ -18,8 +18,8 @@ services:
       - '8080:8080'
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/zafira_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=your_postgres_password
+      - SPRING_DATASOURCE_USERNAME=zafira
+      - SPRING_DATASOURCE_PASSWORD=zafira
     depends_on:
       - postgres
     deploy:
