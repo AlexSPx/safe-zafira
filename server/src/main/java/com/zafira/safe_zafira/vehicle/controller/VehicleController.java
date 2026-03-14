@@ -1,8 +1,10 @@
 package com.zafira.safe_zafira.vehicle.controller;
 
 import com.zafira.safe_zafira.model.VehicleData;
+import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.telemetry.speed.SpeedLimitService;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
+import com.zafira.safe_zafira.vehicle.model.Vehicle;
 import com.zafira.safe_zafira.vehicle.service.VehicleService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import com.zafira.vehicle.model.VehicleInitiationRequest;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -84,7 +87,7 @@ public class VehicleController {
 
 	@GetMapping("/api/vehicles/family/{memberId}")
 	public ResponseEntity<List<Vehicle>> getVehiclesForFamilyMember(@AuthenticationPrincipal Long userId,
-																	@PathVariable Long memberId)
+                                                                    @PathVariable Long memberId)
 	{
 		List<Vehicle> vehicles = service.getAllVehiclesDataForUser(memberId);
 		return ResponseEntity.ok(vehicles);

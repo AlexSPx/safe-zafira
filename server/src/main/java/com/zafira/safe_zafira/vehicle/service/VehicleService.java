@@ -2,7 +2,9 @@ package com.zafira.safe_zafira.vehicle.service;
 
 import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.model.VehicleData;
+import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.user.UserRepository;
+import com.zafira.safe_zafira.vehicle.VehicleStateCache;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.safe_zafira.vehicle.model.Vehicle;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
@@ -23,6 +25,7 @@ public class VehicleService
 
 	private final UserRepository userRepository;
 	private final VehicleRepository vehicleRepository;
+	private final VehicleStateCache vehicleStateCache;
 
 	@Transactional
 	public void registerVehicle(long userId, VehicleInitiationRequest vehicleData)
@@ -74,4 +77,29 @@ public class VehicleService
         log.debug("Getting all vehicles for member [{}]", memberId);
         return vehicleRepository.getAllVehiclesByUserId(memberId);
     }
+
+	public Optional<VehicleDataClient> getCurrentClientVehicleData(String vehicleId) {
+		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+			throw new InvalidVehicleException("Vehicle not found");
+		}
+
+		log.debug("Getting the vehicle data for vehicle [{}]", vehicleId);
+		var vehicleData = vehicleRepository.getLatestTelemetryByVehicleNo(vehicleId);
+		var vehicleDataClient = new VehicleDataClient(
+				vehicleData.speed(),
+				vehicleData.location(),
+				vehicleData.diagnostics(),
+				vehicleData.battery(),
+				vehicleData.batteryCar(),
+				vehicleData.fuel(),
+				vehicleData.dangers(),
+				vehicleData.airbags(),
+				vehicleData.abs(),
+				vehicleData.esp(),
+				vehicleStateCache.get(vehicleId)
+		);
+
+		return Optional.of(vehicleDataClient);
+	}
 }
