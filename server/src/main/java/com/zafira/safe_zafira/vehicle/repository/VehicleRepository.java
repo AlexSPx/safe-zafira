@@ -105,7 +105,7 @@ public class VehicleRepository
 				WHERE uv.user_id = ? ORDER BY ts DESC LIMIT 1
 				""";
 
-		return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+		return jdbcTemplate.queryForObject(sql, (rs, _) -> {
 			LocationData loc = new LocationData(
 					rs.getDouble("latitude"),
 					rs.getDouble("longitude")
