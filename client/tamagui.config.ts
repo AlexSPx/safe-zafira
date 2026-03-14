@@ -19,7 +19,7 @@ const customThemes = {
     inputPlaceholderText: '#A09890',
     button: '#7e3486',
     buttonHover: '#652a6b',
-    buttonSecondary: '#6a456e',
+    buttonSecondary: '#644178',
   },
   dark: {
     ...config.themes.dark,
@@ -37,7 +37,7 @@ const customThemes = {
     inputPlaceholderText: '#A09890',
     button: '#7e3486',
     buttonHover: '#652a6b',
-    buttonSecondary: '#6a456e',
+    buttonSecondary: '#644178',
   },
 };
 

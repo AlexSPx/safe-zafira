@@ -9,7 +9,7 @@ interface QuickStatProps {
 export const QuickStat = ({ icon, label, value }: QuickStatProps) => (
   <YStack
     flex={1}
-    backgroundColor="#6a456e"
+    backgroundColor="$buttonSecondary"
     borderColor="$borderColor"
     borderWidth={1}
     padding="$4"

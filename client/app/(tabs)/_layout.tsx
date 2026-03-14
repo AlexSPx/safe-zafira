@@ -1,5 +1,12 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, MapPin, Users, Wrench } from 'lucide-react-native';
+import {
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  User,
+  Users,
+  Wrench,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
@@ -57,6 +64,13 @@ export default function TabsLayout() {
         options={{
           title: 'Diagnosis',
           tabBarIcon: ({ color, size }) => <Wrench color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />
     </Tabs>
