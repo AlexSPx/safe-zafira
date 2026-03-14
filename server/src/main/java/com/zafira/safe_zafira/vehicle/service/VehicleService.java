@@ -7,6 +7,7 @@ import com.zafira.safe_zafira.user.UserRepository;
 import com.zafira.safe_zafira.vehicle.VehicleStateCache;
 import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.safe_zafira.vehicle.model.Vehicle;
+import com.zafira.safe_zafira.vehicle.model.VehicleStatusSummary;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
 import com.zafira.safe_zafira.vehicle.repository.VehicleRepository;
 import lombok.AllArgsConstructor;
@@ -77,6 +78,12 @@ public class VehicleService
         log.debug("Getting all vehicles for member [{}]", memberId);
         return vehicleRepository.getAllVehiclesByUserId(memberId);
     }
+
+	public List<VehicleStatusSummary> getAggregatedVehicleStatus(Long memberId, int minutes)
+	{
+		log.debug("Getting aggregated vehicle status for member [{}] over last [{}] minutes", memberId, minutes);
+		return vehicleRepository.getAggregatedStatusByUserId(memberId, minutes);
+	}
 
 	public Optional<VehicleDataClient> getCurrentClientVehicleData(String vehicleId) {
 		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {

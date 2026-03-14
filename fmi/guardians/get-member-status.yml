@@ -1,0 +1,26 @@
+info:
+  name: get-member-status
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: http://localhost:8080/api/vehicles/family/2
+  headers:
+    - name: Authorization
+      value: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJtbTFAZ21haWwuY29tIiwidXNlcklkIjoxLCJpYXQiOjE3NzM1MjQzMzQsImV4cCI6MTc3MzY5NzEzNH0.GSoYtJ897xBxkChU-E4adHSCS1o22ssecsjipXgzmTPGqu-L19mtTS112-csSaw9
+  body:
+    type: json
+    data: |-
+      {
+        "ownerId": 1,
+        "watcherId": 2,
+        "privacyLevel": "ALL"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
