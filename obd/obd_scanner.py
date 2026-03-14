@@ -5,22 +5,59 @@ import threading
 import queue
 import json
 import os
+import logging
 from datetime import datetime
 
+# --- Logging Setup ---
+os.makedirs("logs", exist_ok=True)
+log_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+# Main application logger
+logger = logging.getLogger("obd_scanner")
+logger.setLevel(logging.DEBUG)
+_console = logging.StreamHandler()
+_console.setLevel(logging.INFO)
+_console.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s', datefmt='%H:%M:%S'))
+logger.addHandler(_console)
+
+# Raw CAN frame logger (every frame sent/received)
+raw_logger = logging.getLogger("obd_scanner.raw")
+raw_logger.setLevel(logging.DEBUG)
+_raw_fh = logging.FileHandler(f"logs/can_raw_{log_timestamp}.log")
+_raw_fh.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d %(message)s', datefmt='%H:%M:%S'))
+raw_logger.addHandler(_raw_fh)
+raw_logger.propagate = False
+
+# Parsed data logger (decoded values)
+parsed_logger = logging.getLogger("obd_scanner.parsed")
+parsed_logger.setLevel(logging.DEBUG)
+_parsed_fh = logging.FileHandler(f"logs/can_parsed_{log_timestamp}.log")
+_parsed_fh.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d %(message)s', datefmt='%H:%M:%S'))
+parsed_logger.addHandler(_parsed_fh)
+parsed_logger.propagate = False
+
 # Standard OBD-II Request and Response IDs for CAN (11-bit)
-OBD_REQUEST_ID = 0x7DF
-OBD_RESPONSE_BASE = 0x7E8  # Engine ECU usually responds here
+OBD_REQUEST_ID = 0x7DF       # Broadcast request (all ECUs listen)
+OBD_PHYSICAL_ID = 0x7E0       # Physical request ID for ECM (used for Flow Control)
+OBD_RESPONSE_BASE = 0x7E8     # Engine ECU usually responds here
+
+# Toyota proprietary request/response IDs (instrument cluster / body ECU)
+TOYOTA_PROP_REQUEST_ID = 0x7C0
+TOYOTA_PROP_RESPONSE_ID = 0x7C8
 
 # Modes
 MODE_CURRENT_DATA = 0x01
 MODE_REQUEST_DTC = 0x03
 MODE_VEHICLE_INFO = 0x09
+TOYOTA_MODE_ENHANCED = 0x21   # Toyota proprietary enhanced diagnostic mode
 
 # Mode 01 PIDs
 PID_VEHICLE_SPEED = 0x0D
 PID_FUEL_LEVEL = 0x2F
 PID_CONTROL_MODULE_VOLTAGE = 0x42
-PID_ODOMETER = 0xA6             # May not be supported on all cars
+
+# Toyota Enhanced PIDs (Service 0x21)
+TOYOTA_PID_ODO_FUEL = 0x29    # Odometer + fuel data via instrument cluster
 
 # Mode 09 PIDs
 PID_VIN = 0x02
@@ -63,12 +100,17 @@ class PassiveCANListener(can.Listener):
         self.brake_cfg = msgs.get("brake_status", {})
 
     def on_message_received(self, msg):
+        # Log every passive frame we care about
+        if msg.arbitration_id in (self.brake_id, self.abs_id, self.airbags_id):
+            raw_logger.debug(f"PASSIVE RX  ID=0x{msg.arbitration_id:03X} DATA={msg.data.hex(' ')}")
+
         # 1. Check for passive Brake Pedal Data
         if msg.arbitration_id == self.brake_id:
             idx = self.brake_cfg.get("byte_index", 2)
             if len(msg.data) > idx:
                 # Assuming 0-255 maps to 0-100%
                 self.brake_level = min(100.0, (msg.data[idx] * 100) / 255.0)
+                parsed_logger.debug(f"BRAKE byte[{idx}]=0x{msg.data[idx]:02X} -> {self.brake_level:.1f}%")
                 
         # 2. Check for passive ABS Activation
         if msg.arbitration_id == self.abs_id:
@@ -85,18 +127,22 @@ class PassiveCANListener(can.Listener):
                 self.airbags_open = (msg.data[idx] == active_val)
 
 
-def send_obd_request(bus, mode, pid=None):
-    """Sends an OBD-II request over CAN. PID is optional for some modes like 03."""
+def send_obd_request(bus, mode, pid=None, arb_id=None):
+    """Sends an OBD-II request over CAN. PID is optional for some modes like 03.
+    arb_id can be overridden for Toyota proprietary requests (e.g. 0x7C0).
+    """
+    target_id = arb_id if arb_id else OBD_REQUEST_ID
     if pid is not None:
         data = [0x02, mode, pid, 0x00, 0x00, 0x00, 0x00, 0x00]
     else:
         data = [0x01, mode, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
         
-    msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=data, is_extended_id=False)
+    msg = can.Message(arbitration_id=target_id, data=data, is_extended_id=False)
+    raw_logger.debug(f"TX  ID=0x{target_id:03X} DATA={bytes(data).hex(' ')}")
     try:
         bus.send(msg)
     except can.CanError as e:
-        pass
+        logger.error(f"CAN send error: {e}")
 
 
 def decode_dtc(high_byte, low_byte):
@@ -134,6 +180,7 @@ def parse_dtc_response(bus):
         data = msg.data
         if not data: continue
         
+        raw_logger.debug(f"DTC RX  ID=0x{msg.arbitration_id:03X} DATA={data.hex(' ')}")
         pci = data[0] >> 4
         
         # Mode 3 response is Mode + 0x40 = 0x43
@@ -147,8 +194,9 @@ def parse_dtc_response(bus):
             if data[2] == 0x43:
                 num_dtcs = data[3]
                 dtc_bytes.extend(data[4:8])
-                # Send Flow Control
-                fc_msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                # Send Flow Control to ECU physical address, NOT broadcast
+                fc_msg = can.Message(arbitration_id=OBD_PHYSICAL_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                raw_logger.debug(f"DTC FC TX  ID=0x{OBD_PHYSICAL_ID:03X} DATA={bytes(fc_msg.data).hex(' ')}")
                 bus.send(fc_msg)
                 
         elif pci == 2: # Consecutive frame
@@ -162,7 +210,8 @@ def parse_dtc_response(bus):
         code = decode_dtc(dtc_bytes[i], dtc_bytes[i+1])
         if code:
             dtcs.append(code)
-            
+    
+    parsed_logger.info(f"DTCs decoded: {dtcs if dtcs else 'No Errors Found'}")
     return list(set(dtcs)) if dtcs else ["No Errors Found"]
 
 
@@ -170,13 +219,14 @@ def parse_vin_response(bus):
     """
     Parses a multi-frame OBD-II response for the VIN.
     VINs are 17 characters long, so they require ISO-TP multi-frame (First Frame, Consecutive Frames).
+    Flow Control frames MUST be sent to the ECU's physical ID (0x7E0), not the broadcast ID (0x7DF).
     """
     send_obd_request(bus, MODE_VEHICLE_INFO, PID_VIN)
     
     vin_bytes = bytearray()
     expected_length = 0
     
-    timeout = time.time() + 2.0
+    timeout = time.time() + 3.0
     while time.time() < timeout:
         msg = bus.recv(0.5)
         if not msg or msg.arbitration_id < 0x7E8 or msg.arbitration_id > 0x7EF:
@@ -185,6 +235,7 @@ def parse_vin_response(bus):
         data = msg.data
         if not data: continue
         
+        raw_logger.debug(f"VIN RX  ID=0x{msg.arbitration_id:03X} DATA={data.hex(' ')}")
         pci = data[0] >> 4
         
         if pci == 0:  # Single Frame (Unusual for VIN, but possible if short)
@@ -197,23 +248,29 @@ def parse_vin_response(bus):
         elif pci == 1: # First Frame
             expected_length = ((data[0] & 0x0F) << 8) | data[1]
             if data[2] == 0x49 and data[3] == PID_VIN:
-                vin_bytes.extend(data[5:8])
-                # Send Flow Control frame to tell ECU to send the rest
-                fc_msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                # data[4] = number of data items (usually 01), data[5:] = start of VIN
+                vin_bytes.extend(data[5:])
+                # Send Flow Control to ECU physical address, NOT broadcast!
+                fc_msg = can.Message(arbitration_id=OBD_PHYSICAL_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                raw_logger.debug(f"VIN FC TX  ID=0x{OBD_PHYSICAL_ID:03X} DATA={bytes(fc_msg.data).hex(' ')}")
                 bus.send(fc_msg)
                 
         elif pci == 2: # Consecutive Frame
             vin_bytes.extend(data[1:])
-            # Filter the VIN to valid ASCII
             if len(vin_bytes) >= 17:
                 break
-                
+    
+    raw_logger.debug(f"VIN raw bytes ({len(vin_bytes)}): {vin_bytes.hex(' ')}")
+    
     if len(vin_bytes) >= 17:
         # VIN usually contains padded nulls or count bytes, we extract ASCII 
         vin = ''.join(chr(b) for b in vin_bytes if 32 <= b <= 126)
         # Ensure it's exactly 17 characters
-        return vin[-17:]
+        result = vin[-17:] if len(vin) >= 17 else vin
+        parsed_logger.info(f"VIN decoded: {result}")
+        return result
     
+    parsed_logger.warning(f"VIN failed: only got {len(vin_bytes)} bytes")
     return "Unknown/Unsupported"
 
 
@@ -257,17 +314,25 @@ def trigger_beep(bus, config):
         print(f"[CAN Writer] Failed to send beep command: {e}")
 
 
-def request_and_read(bus, mode, pid, parser_func):
-    """Sends a request, waits for a response, and parses it."""
-    send_obd_request(bus, mode, pid)
+def request_and_read(bus, mode, pid, parser_func, arb_id=None, resp_id_range=None):
+    """Sends a request, waits for a response, and parses it.
+    arb_id: override CAN ID for request (e.g. 0x7C0 for Toyota proprietary).
+    resp_id_range: tuple (min, max) for expected response IDs.
+    """
+    send_obd_request(bus, mode, pid, arb_id=arb_id)
     
-    timeout = time.time() + 0.2
+    resp_min, resp_max = resp_id_range if resp_id_range else (0x7E8, 0x7EF)
+    timeout = time.time() + 1.5  # Increased from 0.2s — the 2007 Yaris ECU can be slow
     while time.time() < timeout:
-        msg = bus.recv(0.05)
-        if msg and 0x7E8 <= msg.arbitration_id <= 0x7EF:
+        msg = bus.recv(0.1)
+        if msg and resp_min <= msg.arbitration_id <= resp_max:
+            raw_logger.debug(f"PID RX  ID=0x{msg.arbitration_id:03X} DATA={msg.data.hex(' ')} (expecting mode=0x{mode:02X} pid=0x{pid:02X})")
             # Check if this is the response to our PID
-            if msg.data[1] == (mode + 0x40) and msg.data[2] == pid:
-                return parser_func(msg.data)
+            if len(msg.data) >= 3 and msg.data[1] == (mode + 0x40) and msg.data[2] == pid:
+                result = parser_func(msg.data)
+                parsed_logger.debug(f"PID 0x{pid:02X} parsed -> {result}")
+                return result
+    parsed_logger.debug(f"PID 0x{pid:02X} (mode 0x{mode:02X}) -> no response (timeout)")
     return None
 
 # --- PARSERS ---
@@ -310,11 +375,17 @@ def parse_voltage(data):
         return ((data[offset] * 256) + data[offset+1]) / 1000.0 # V
     return None
 
-def parse_odometer(data):
-    offset = find_data_offset(data, MODE_CURRENT_DATA, PID_ODOMETER)
-    # Distance is 4 bytes
-    if offset and offset + 3 < len(data):
-        return (data[offset] * (2**24) + data[offset+1] * (2**16) + data[offset+2] * (2**8) + data[offset+3]) / 10.0 # km
+def parse_toyota_odo(data):
+    """Parse Toyota proprietary Service 0x21, PID 0x29 odometer response.
+    Response format on 0x7C8: [len] [0x61] [0x29] [ODO_HIGH] [ODO_MID] [ODO_LOW] ...
+    The odometer bytes encode the total km reading.
+    """
+    offset = find_data_offset(data, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL)
+    if offset and offset + 2 < len(data):
+        # 3-byte big-endian odometer value in km
+        odo_km = (data[offset] << 16) | (data[offset+1] << 8) | data[offset+2]
+        parsed_logger.debug(f"Toyota ODO raw bytes: {data[offset]:02X} {data[offset+1]:02X} {data[offset+2]:02X} -> {odo_km} km")
+        return odo_km
     return None
 
 
@@ -382,7 +453,13 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         current_speed = request_and_read(bus, MODE_CURRENT_DATA, PID_VEHICLE_SPEED, parse_speed)
         fuel = request_and_read(bus, MODE_CURRENT_DATA, PID_FUEL_LEVEL, parse_fuel)
         voltage = request_and_read(bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage)
-        mileage = request_and_read(bus, MODE_CURRENT_DATA, PID_ODOMETER, parse_odometer)
+        # Toyota 2007 Yaris does NOT support standard PID 0xA6 for odometer.
+        # Use Toyota proprietary Service 0x21, PID 0x29 via CAN ID 0x7C0.
+        mileage = request_and_read(
+            bus, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL, parse_toyota_odo,
+            arb_id=TOYOTA_PROP_REQUEST_ID,
+            resp_id_range=(TOYOTA_PROP_RESPONSE_ID, TOYOTA_PROP_RESPONSE_ID)
+        )
         
         # Note: We pull brake level directly from the passive CAN listener instead of OBD polling!
         brake_level = listener.brake_level
@@ -420,6 +497,9 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             "abs_activated": abs_activated,
             "airbags_open": airbags_open
         }
+        
+        # Log parsed telemetry to file
+        parsed_logger.info(json.dumps(packet))
         
         # 4. Send to Consumer
         try:
