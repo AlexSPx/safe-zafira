@@ -6,5 +6,6 @@ public enum Dangers {
     DRIVER_FATIGUE,
     AIRBAGS_DEPLOYED,
     ABS_ACTIVATED,
-    LOW_BATTERY
+    LOW_BATTERY,
+    DRIVER_NOT_AWARE
 }

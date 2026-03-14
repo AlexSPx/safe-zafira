@@ -96,6 +96,20 @@ public class VehicleRepository
 		});
 	}
 
+	public LocationData getLatestLocationByVehicleNo(String vehicleNo)
+	{
+		String sql = """
+				SELECT latitude, longitude FROM vehicle_telemetry
+				WHERE vehicle_no = ? AND latitude IS NOT NULL AND longitude IS NOT NULL
+				ORDER BY ts DESC LIMIT 1
+				""";
+
+		return jdbcTemplate.queryForObject(sql, (rs, _) -> new LocationData(
+				rs.getDouble("latitude"),
+				rs.getDouble("longitude")
+		), vehicleNo);
+	}
+
 	public VehicleData getLatestTelemetryByUserId(Long userId)
 	{
 		String sql = """
