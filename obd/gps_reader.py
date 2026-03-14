@@ -65,16 +65,20 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
         baudrate:   Baud rate; NEO-6M default is 9600.
         stop_event: Optional threading.Event to signal graceful shutdown.
     """
-    logger.info(f"[GPS] Starting on {port} @ {baudrate} baud.")
+    logger.info(f"[GPS] Starting on {port} @ {baudrate} baud...")
     
     try:
-        # No timeout so readline() blocks naturally until a full sentence arrives
-        ser = serial.Serial(port=port, baudrate=baudrate)
+        # timeout=1 prevents buffer overrun on RPi mini-UART;
+        # readline() returns b'' if no complete sentence arrives within 1s
+        ser = serial.Serial(port=port, baudrate=baudrate, timeout=1)
+        logger.info(f"[GPS] Serial port {port} opened OK.")
     except Exception as e:
         logger.error(f"[GPS] Cannot open serial port {port}. (Error: {e})")
         logger.error("[GPS] Check that the port exists on this machine and is readable.")
         return
     
+    first_nmea = True
+
     try:
         while stop_event is None or not stop_event.is_set():
             try:
@@ -84,10 +88,18 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
                 time.sleep(1)
                 continue
 
+            # readline() returns b'' on timeout — that's normal, just loop
+            if not raw or not raw.strip():
+                continue
+
             line = raw.decode("ascii", errors="replace").strip()
 
             if not line.startswith("$"):
                 continue
+
+            if first_nmea:
+                logger.info(f"[GPS] First NMEA sentence: {line[:60]}")
+                first_nmea = False
 
             try:
                 msg = pynmea2.parse(line)
@@ -112,10 +124,10 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
                     timestamp_utc=str(msg.timestamp) if msg.timestamp else None,
                 )
                 if fix_q > 0:
-                    logger.debug(f"[GPS] Fix: {msg.latitude:.6f}, {msg.longitude:.6f} "
-                                 f"alt={msg.altitude}m sats={msg.num_sats}")
+                    logger.info(f"[GPS] Fix: {msg.latitude:.6f}, {msg.longitude:.6f} "
+                                f"alt={msg.altitude}m sats={msg.num_sats}")
                 else:
-                    logger.debug(f"[GPS] No fix yet (sats={msg.num_sats})")
+                    logger.info(f"[GPS] No fix yet (sats={msg.num_sats})")
 
             # RMC — Speed over ground
             elif msg.sentence_type == 'RMC':

@@ -60,18 +60,21 @@ except Exception as exc:
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
+# Ensure gps_reader and other sub-module loggers propagate to root
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s  %(message)s',
     datefmt='%H:%M:%S',
 )
 logger = logging.getLogger("telemetry")
+# Force the gps_reader logger to INFO so fix messages are visible
+logging.getLogger("gps_reader").setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 DEFAULT_SERVER_URL   = "http://localhost:8080"
-SEND_INTERVAL        = 5.0        # seconds between server POSTs
+SEND_INTERVAL        = 1.0        # seconds between server POSTs
 CRASH_DECEL_THRESHOLD = 30        # km/h/s
 HARD_BRAKE_THRESHOLD  = 10        # km/h/s
 FATIGUE_DRIVE_LIMIT   = 2 * 3600  # 2 hours
@@ -244,7 +247,7 @@ def mock_can_reader_thread(data_queue: queue.Queue, stop_event: threading.Event)
                 pass
 
         t += 1
-        time.sleep(0.5)
+        time.sleep(1.0)
 
     logger.info("[MOCK] Mock CAN reader stopped.")
 
@@ -425,7 +428,7 @@ def main():
     response_queue = queue.Queue(maxsize=10)
     stop_event     = threading.Event()
 
-    # ── Step 2: Driver Attention Monitor ──────────────────────────
+    # ── Driver Attention Monitor ──────────────────────────
     logger.info(f"[BOOT] Step 2/4: Starting driver attention monitor (camera={args.camera})...")
     attention_monitor = None
     try:
@@ -442,11 +445,7 @@ def main():
     except Exception as e:
         logger.warning(f"[BOOT] Attention monitor unavailable: {e} — continuing without it")
 
-    # ── Step 3 & 4: Start OBD + sender threads ─────────────────────────────────
-    data_queue     = queue.Queue(maxsize=100)
-    command_queue  = queue.Queue(maxsize=10)
-    response_queue = queue.Queue(maxsize=10)
-    stop_event     = threading.Event()
+    # ── GPS + OBD + sender threads ─────────────────────────────────
 
     gps_daemon = None
     if args.no_gps:
