@@ -74,7 +74,7 @@ public class VehicleController {
         return ResponseEntity.status(HttpStatus.OK).body(maxSpeed);
     }
 
-    @GetMapping("/api/vehicles")
+    @GetMapping("/api/vehicles/data")
     public ResponseEntity<VehicleDataClient> getLatestVehicleData(@AuthenticationPrincipal Long userId,
                                                                   @RequestHeader Map<String, String> headers) {
         String vehicleId = headers.get(VEHICLE_HEADER_NAME);
@@ -92,6 +92,14 @@ public class VehicleController {
 		List<Vehicle> vehicles = service.getAllVehiclesDataForUser(memberId);
 		return ResponseEntity.ok(vehicles);
 	}
+
+
+    @GetMapping("/api/vehicles")
+    public ResponseEntity<List<Vehicle>> getVehiclesForCurrentUser(@AuthenticationPrincipal Long userId)
+    {
+        List<Vehicle> vehicles = service.getAllVehiclesForUser(userId);
+        return ResponseEntity.ok(vehicles);
+    }
 
 	@ExceptionHandler(InvalidVehicleException.class)
 	public ResponseEntity<Void> invalidVehicleExceptionHandler()

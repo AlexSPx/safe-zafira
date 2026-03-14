@@ -102,4 +102,9 @@ public class VehicleService
 
 		return Optional.of(vehicleDataClient);
 	}
+
+    public List<Vehicle> getAllVehiclesForUser(Long userId) {
+		log.debug("Getting all vehicles for user [{}]", userId);
+		return vehicleRepository.getAllVehiclesByUserId(userId);
+    }
 }
