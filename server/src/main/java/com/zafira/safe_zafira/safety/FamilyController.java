@@ -13,15 +13,15 @@ import java.util.List;
 @RequestMapping("/api/family")
 @AllArgsConstructor
 @Slf4j
-public class SafetyController
+public class FamilyController
 {
 
-	private final GuardianService guardianService;
+	private final FamilyService familyService;
 
 	@GetMapping("/all/{myId}")
 	public ResponseEntity<List<GuardedMemberSummary>> getDashboard(@PathVariable Long myId)
 	{
-		List<GuardedMemberSummary> dashboard = guardianService.getFamilyDashboard(myId);
+		List<GuardedMemberSummary> dashboard = familyService.getFamilyDashboard(myId);
 		return ResponseEntity.ok(dashboard);
 	}
 
@@ -32,7 +32,7 @@ public class SafetyController
 	{
 		try
 		{
-			FamilyMemberStatus status = guardianService.getMemberStatus(myId, memberId);
+			FamilyMemberStatus status = familyService.getMemberStatus(myId, memberId);
 			return ResponseEntity.ok(status);
 		}
 		catch (IllegalArgumentException e)
@@ -50,7 +50,7 @@ public class SafetyController
 	{
 		try
 		{
-			guardianService.addMutualGuardiansByEmail(myId, email, privacyLevel);
+			familyService.addMutualGuardiansByEmail(myId, email, privacyLevel);
 			return ResponseEntity.ok("Guardian linked successfully!");
 		}
 		catch (IllegalArgumentException e)
