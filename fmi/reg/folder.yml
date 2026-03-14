@@ -1,0 +1,7 @@
+info:
+  name: reg
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit

@@ -1,0 +1,27 @@
+info:
+  name: login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/users/login
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJtbTFAZ21haWwuY29tIiwidXNlcklkIjoxLCJpYXQiOjE3NzM1MjQzMzQsImV4cCI6MTc3MzY5NzEzNH0.GSoYtJ897xBxkChU-E4adHSCS1o22ssecsjipXgzmTPGqu-L19mtTS112-csSaw9
+  body:
+    type: json
+    data: |-
+      {
+        "email": "mm1@gmail.com",
+        "password": "12345"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

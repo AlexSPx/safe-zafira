@@ -1,0 +1,33 @@
+info:
+  name: get-guyardian
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/family/1/add-by-email?email=mm5@gmail.com&privacyLevel=FULL_ACCESS
+  headers:
+    - name: Authorization
+      value: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJtbTFAZ21haWwuY29tIiwidXNlcklkIjoxLCJpYXQiOjE3NzM1MjQzMzQsImV4cCI6MTc3MzY5NzEzNH0.GSoYtJ897xBxkChU-E4adHSCS1o22ssecsjipXgzmTPGqu-L19mtTS112-csSaw9
+  params:
+    - name: email
+      value: mm5@gmail.com
+      type: query
+    - name: privacyLevel
+      value: FULL_ACCESS
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "ownerId": 1,
+        "watcherId": 2,
+        "privacyLevel": "FULL_ACCESS"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
