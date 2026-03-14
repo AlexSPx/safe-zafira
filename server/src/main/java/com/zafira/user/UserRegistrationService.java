@@ -1,14 +1,12 @@
 package com.zafira.user;
 
 import com.zafira.user.exceptions.UserAlreadyExistsException;
+import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 
-import java.util.logging.Logger;
-
+@Slf4j
 public class UserRegistrationService
 {
-
-	private final Logger logger = Logger.getLogger(UserRegistrationService.class.getName());
 	private final UserRepository userRepository;
 
 	public UserRegistrationService(UserRepository userRepository)
@@ -18,18 +16,18 @@ public class UserRegistrationService
 
 	public long registerUser(String email, String plainTextPassword) throws UserAlreadyExistsException
 	{
-		logger.info("Attempting to register user: " + email);
+		log.info("Attempting to register user: {}", email);
 
 		if (userRepository.findByEmail(email).isPresent())
 		{
-			logger.severe("Registration failed: User " + email + " already exists.");
+			log.error("Registration failed: User {} already exists.", email);
 			throw new UserAlreadyExistsException("User with email " + email + " already exists.");
 		}
 
 		String hashedPassword = BCrypt.hashpw(plainTextPassword, BCrypt.gensalt(12));
 
 		long newUserId = userRepository.save(email, hashedPassword);
-		logger.info("Successfully registered user: " + email + " with ID: " + newUserId);
+		log.info("Successfully registered user: {} with ID: {}", email, newUserId);
 
 		return newUserId;
 	}

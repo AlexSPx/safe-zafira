@@ -3,15 +3,15 @@ package com.zafira.user;
 import com.zafira.user.exceptions.UserDoesntExistException;
 import com.zafira.user.exceptions.WrongPasswordException;
 import com.zafira.user.model.User;
+import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 
 import java.util.Optional;
-import java.util.logging.Logger;
 
+@Slf4j
 public class UserLoginService
 {
 
-	private final Logger logger = Logger.getLogger(UserLoginService.class.getName());
 	private final UserRepository userRepository;
 
 	public UserLoginService(UserRepository userRepository)
@@ -21,13 +21,13 @@ public class UserLoginService
 
 	public long loginUser(String email, String plainTextPassword) throws UserDoesntExistException, WrongPasswordException
 	{
-		logger.info("Attempting to log in user: " + email);
+		log.info("Attempting to log in user: {}", email);
 
 		Optional<User> optionalUser = userRepository.findByEmail(email);
 
 		if (optionalUser.isEmpty())
 		{
-			logger.severe("Login failed: User " + email + " does not exist.");
+			log.error("Login failed: User {} does not exist.", email);
 			throw new UserDoesntExistException("User " + email + " doesn't exist");
 		}
 
@@ -37,11 +37,11 @@ public class UserLoginService
 
 		if (!passwordMatches)
 		{
-			logger.severe("Login failed: Wrong password for user " + email);
+			log.error("Login failed: Wrong password for user {}", email);
 			throw new WrongPasswordException("Invalid password for user " + email);
 		}
 
-		logger.info("Successfully logged in user: " + email);
+		log.info("Successfully logged in user: {}", email);
 		return user.getId();
 	}
 }
