@@ -6,6 +6,7 @@ import com.zafira.safe_zafira.user.exceptions.UserDoesntExistException;
 import com.zafira.safe_zafira.user.exceptions.WrongPasswordException;
 import com.zafira.safe_zafira.user.model.AuthRequest;
 import com.zafira.safe_zafira.user.model.AuthResponse;
+import com.zafira.safe_zafira.user.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,30 +29,53 @@ public class UserController {
 
 	@PostMapping("/register")
 	public ResponseEntity<AuthResponse> register(@RequestBody AuthRequest request) {
-		try {long userId = registrationService.registerUser(request.email(), request.password(), request.username(), request.familyName());
-			String token = jwtUtility.generateToken(userId, request.email());
+		try {
+			User user = registrationService.registerUser(
+					request.email(),
+					request.password(),
+					request.username(),
+					request.firstName(),
+					request.familyName()
+			);
+			String token = jwtUtility.generateToken(user.getId(), user.getEmail());
 
 			return ResponseEntity.status(HttpStatus.CREATED)
-								 .body(new AuthResponse(userId, token, "Registration successful"));
+								 .body(new AuthResponse(
+										 user.getId(),
+										 user.getEmail(),
+										 user.getUsername(),
+										 user.getFirstName(),
+										 user.getFamilyName(),
+										 token,
+										 "Registration successful"
+								 ));
 
 		} catch (UserAlreadyExistsException e) {
 			return ResponseEntity.status(HttpStatus.CONFLICT)
-								 .body(new AuthResponse(-1, null, e.getMessage()));
+								 .body(new AuthResponse(null, null, null, null, null, null, e.getMessage()));
 		}
 	}
 
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
 		try {
-			long userId = loginService.loginUser(request.email(), request.password());
+			User user = loginService.loginUser(request.email(), request.password());
 
-			String token = jwtUtility.generateToken(userId, request.email());
+			String token = jwtUtility.generateToken(user.getId(), user.getEmail());
 
-			return ResponseEntity.ok(new AuthResponse(userId, token, "Login successful"));
+			return ResponseEntity.ok(new AuthResponse(
+					user.getId(),
+					user.getEmail(),
+					user.getUsername(),
+					user.getFirstName(),
+					user.getFamilyName(),
+					token,
+					"Login successful"
+			));
 
 		} catch (UserDoesntExistException | WrongPasswordException e) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-								 .body(new AuthResponse(-1, null, "Invalid email or password"));
+								 .body(new AuthResponse(null, null, null, null, null, null, "Invalid email or password"));
 		}
 	}
 }

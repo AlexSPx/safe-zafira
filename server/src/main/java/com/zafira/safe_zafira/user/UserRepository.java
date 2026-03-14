@@ -24,28 +24,33 @@ public class UserRepository
 			rs.getString("email"),
 			rs.getString("password_hash"),
 			rs.getString("username"),
+			rs.getString("first_name"),
 			rs.getString("family_name")
 	);
 
 	public Optional<User> findByEmail(String email)
 	{
-		String sql = "SELECT id, email, password_hash, username, family_name FROM users WHERE email = ?";
+		String sql = "SELECT id, email, password_hash, username, first_name, family_name FROM users WHERE email = ?";
 
 		List<User> users = jdbcTemplate.query(sql, userRowMapper, email);
 
 		return users.stream().findFirst();
 	}
 
-	public long save(String email, String passwordHash, String username, String familyName)
+	public User save(String email, String passwordHash, String username, String firstName, String familyName)
 	{
-		String sql = "INSERT INTO users (email, password_hash, username, family_name) VALUES (?, ?, ?, ?) RETURNING id";
+		String sql = """
+				INSERT INTO users (email, password_hash, username, first_name, family_name)
+				VALUES (?, ?, ?, ?, ?)
+				RETURNING id, email, password_hash, username, first_name, family_name
+				""";
 
-		return jdbcTemplate.queryForObject(sql, Long.class, email, passwordHash, username, familyName);
+		return jdbcTemplate.queryForObject(sql, userRowMapper, email, passwordHash, username, firstName, familyName);
 	}
 
 	public Optional<User> findById(long id)
 	{
-		String sql = "SELECT id, email, password_hash, username, family_name FROM users WHERE id = ?";
+		String sql = "SELECT id, email, password_hash, username, first_name, family_name FROM users WHERE id = ?";
 
 		List<User> users = jdbcTemplate.query(sql, userRowMapper, id);
 
