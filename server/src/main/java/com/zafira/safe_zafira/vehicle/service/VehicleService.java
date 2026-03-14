@@ -8,43 +8,47 @@ import com.zafira.safe_zafira.vehicle.repository.VehicleRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
 @AllArgsConstructor
-public class VehicleService {
+public class VehicleService
+{
 
-    private final UserRepository userRepository;
-    private final VehicleRepository vehicleRepository;
+	private final UserRepository userRepository;
+	private final VehicleRepository vehicleRepository;
 
-    public void registerVehicle(long userId, VehicleInitiationRequest vehicleData) {
-        if (!userRepository.userExistsById(userId)) {
-            //TODO: Better exception
-            log.error("User with id [" + userId +"] does not exist in the db");
-            throw new IllegalArgumentException();
-        }
+	@Transactional
+	public void registerVehicle(long userId, VehicleInitiationRequest vehicleData)
+	{
+		if (!userRepository.userExistsById(userId))
+		{
+			log.error("User with id [{}] does not exist in the db", userId);
+			throw new IllegalArgumentException("User not found");
+		}
 
-        log.debug("Saving vehicle");
-        long vehicleId = vehicleRepository.save(vehicleData);
+		log.debug("Saving vehicle and linking to user [{}]", userId);
+		long vehicleId = vehicleRepository.save(vehicleData);
+		vehicleRepository.addUserVehicle(userId, vehicleId);
+	}
 
-        log.debug("Saving user_vehicle");
-        vehicleRepository.addUserVehicle(userId, vehicleId);
-    }
+	@Transactional
+	public void addVehicleData(Long userId, String vehicleId, VehicleData data) throws InvalidVehicleException
+	{
+		if (!userRepository.userExistsById(userId))
+		{
+			log.error("User with id [{}] does not exist in the db", userId);
+			throw new IllegalArgumentException("User not found");
+		}
 
-    public void addVehicleData(Long userId, String vehicleId, VehicleData data) throws InvalidVehicleException {
-        if (!userRepository.userExistsById(userId)) {
-            log.error("User with id [" + userId +"] does not exist in the db");
-            //TODO: Better exception
-            throw new IllegalArgumentException();
-        }
+		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId))
+		{
+			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
+			throw new InvalidVehicleException("Vehicle not found");
+		}
 
-        if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
-            log.error("Vehicle with no ["+vehicleId+"] does not exist in the db");
-            //TODO: Better exception
-            throw new IllegalArgumentException();
-        }
-
-        log.debug("Entering vehicle data");
-       vehicleRepository.enterData(data);
-    }
+		log.debug("Entering telemetry data for vehicle [{}]", vehicleId);
+		vehicleRepository.enterData(data);
+	}
 }
