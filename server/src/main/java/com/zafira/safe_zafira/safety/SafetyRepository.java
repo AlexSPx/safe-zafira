@@ -15,25 +15,20 @@ public class SafetyRepository
 
 	private final JdbcTemplate jdbc;
 
-	public List<Map<String, Object>> getPeopleIWatch(Long myUserId) throws SQLException
+	public List<Map<String, Object>> getPermissionsWhereIWatch(Long myUserId)
 	{
-		String sql = """
-				SELECT u.id, u.full_name, u.email, sp.privacy_level 
-				FROM safety_permissions sp
-				JOIN users u ON u.id = sp.owner_id
-				WHERE sp.viewer_id = ? AND sp.status = 'ACTIVE'
-				""";
+		String sql = "SELECT owner_id, privacy_level FROM safety_permissions WHERE viewer_id = ? AND status = 'ACTIVE'";
 		return jdbc.queryForList(sql, myUserId);
 	}
 
-	public List<Map<String, Object>> getMyGuardians(Long myUserId) throws SQLException
+	public List<Map<String, Object>> getPermissionsWhereIAmWatched(Long myUserId)
 	{
-		String sql = """
-				SELECT u.id, u.full_name, u.email, sp.privacy_level 
-				FROM safety_permissions sp
-				JOIN users u ON u.id = sp.viewer_id
-				WHERE sp.owner_id = ? AND sp.status = 'ACTIVE'
-				""";
+		String sql = "SELECT viewer_id, privacy_level FROM safety_permissions WHERE owner_id = ? AND status = 'ACTIVE'";
 		return jdbc.queryForList(sql, myUserId);
+	}
+
+	public void insertPermission(Long ownerId, Long viewerId, String privacyLevel) {
+		String sql = "INSERT INTO safety_permissions (owner_id, viewer_id, privacy_level, status) VALUES (?, ?, ?, 'ACTIVE')";
+		jdbc.update(sql, ownerId, viewerId, privacyLevel);
 	}
 }
