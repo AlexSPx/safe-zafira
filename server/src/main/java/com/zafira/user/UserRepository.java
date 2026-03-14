@@ -7,12 +7,12 @@ import java.util.Optional;
 public class UserRepository
 {
 
-	public Optional<Long> findByEmail(String email)
+	public Optional<User> findByEmail(String email)
 	{
 		return Optional.empty();
 	}
 
-	public long save(User user)
+	public long save(String email, String password)
 	{
 		return -1;
 	}
