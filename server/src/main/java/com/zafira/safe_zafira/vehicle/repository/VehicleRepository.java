@@ -1,4 +1,4 @@
-package com.zafira.vehicle.repository;
+package com.zafira.safe_zafira.vehicle.repository;
 
 import com.zafira.vehicle.model.VehicleData;
 import com.zafira.vehicle.model.VehicleInitiationRequest;

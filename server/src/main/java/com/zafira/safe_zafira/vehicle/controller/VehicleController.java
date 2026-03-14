@@ -1,8 +1,8 @@
-package com.zafira.vehicle.controller;
+package com.zafira.safe_zafira.vehicle.controller;
 
-import com.zafira.vehicle.exception.InvalidVehicleException;
+import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.vehicle.model.VehicleData;
-import com.zafira.vehicle.service.VehicleService;
+import com.zafira.safe_zafira.vehicle.service.VehicleService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

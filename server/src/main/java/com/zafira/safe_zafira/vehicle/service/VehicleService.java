@@ -1,10 +1,10 @@
-package com.zafira.vehicle.service;
+package com.zafira.safe_zafira.vehicle.service;
 
 import com.zafira.user.UserRepository;
-import com.zafira.vehicle.exception.InvalidVehicleException;
+import com.zafira.safe_zafira.vehicle.exception.InvalidVehicleException;
 import com.zafira.vehicle.model.VehicleData;
 import com.zafira.vehicle.model.VehicleInitiationRequest;
-import com.zafira.vehicle.repository.VehicleRepository;
+import com.zafira.safe_zafira.vehicle.repository.VehicleRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
