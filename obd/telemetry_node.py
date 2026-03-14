@@ -7,6 +7,7 @@ import requests
 from math import radians, cos, sin, asin, sqrt
 
 from obd_poller import OBDPoller
+from ble_pairing import run_ble_pairing
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("telemetry_node")
@@ -89,6 +90,13 @@ class GPSPoller(threading.Thread):
             logger.error(f"GPS polling failed: {e}")
 
 def main():
+    logger.info("Initializing Safe Zafira Telemetry Node...")
+    
+    # 1. Start BLE Pairing Process First
+    logger.info("Starting BLE pairing process...")
+    run_ble_pairing()
+    logger.info("BLE Pairing Complete. Starting data polling loops.")
+
     obd = OBDPoller()
     # gps = GPSPoller()
     
