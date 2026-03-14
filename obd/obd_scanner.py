@@ -13,6 +13,7 @@ OBD_RESPONSE_BASE = 0x7E8  # Engine ECU usually responds here
 
 # Modes
 MODE_CURRENT_DATA = 0x01
+MODE_REQUEST_DTC = 0x03
 MODE_VEHICLE_INFO = 0x09
 
 # Mode 01 PIDs
@@ -84,14 +85,86 @@ class PassiveCANListener(can.Listener):
                 self.airbags_open = (msg.data[idx] == active_val)
 
 
-def send_obd_request(bus, mode, pid):
-    """Sends an OBD-II request over CAN."""
-    data = [0x02, mode, pid, 0x00, 0x00, 0x00, 0x00, 0x00]
+def send_obd_request(bus, mode, pid=None):
+    """Sends an OBD-II request over CAN. PID is optional for some modes like 03."""
+    if pid is not None:
+        data = [0x02, mode, pid, 0x00, 0x00, 0x00, 0x00, 0x00]
+    else:
+        data = [0x01, mode, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        
     msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=data, is_extended_id=False)
     try:
         bus.send(msg)
     except can.CanError as e:
         pass
+
+
+def decode_dtc(high_byte, low_byte):
+    """Decodes two bytes into a standard OBD-II DTC string (e.g. P0133)."""
+    if high_byte == 0 and low_byte == 0:
+        return None
+        
+    first_char_map = {0: 'P', 1: 'C', 2: 'B', 3: 'U'}
+    first_char = first_char_map.get((high_byte >> 6) & 0x03, 'P')
+    second_char = str((high_byte >> 4) & 0x03)
+    third_char = f"{(high_byte & 0x0F):X}"
+    fourth_char = f"{(low_byte >> 4 & 0x0F):X}"
+    fifth_char = f"{(low_byte & 0x0F):X}"
+    
+    return f"{first_char}{second_char}{third_char}{fourth_char}{fifth_char}"
+
+
+def parse_dtc_response(bus):
+    """
+    Sends a Mode 03 request and parses the DTCs.
+    Can be single-frame (up to 3 DTCs) or multi-frame.
+    """
+    send_obd_request(bus, MODE_REQUEST_DTC)
+    
+    dtcs = []
+    timeout = time.time() + 2.0
+    
+    dtc_bytes = bytearray()
+    
+    while time.time() < timeout:
+        msg = bus.recv(0.5)
+        if not msg or msg.arbitration_id < 0x7E8 or msg.arbitration_id > 0x7EF:
+            continue
+            
+        data = msg.data
+        if not data: continue
+        
+        pci = data[0] >> 4
+        
+        # Mode 3 response is Mode + 0x40 = 0x43
+        if pci == 0:  # Single frame
+            if data[1] == 0x43:
+                num_dtcs = data[2]
+                dtc_bytes.extend(data[3:3 + (num_dtcs * 2)])
+                break
+                
+        elif pci == 1: # First frame multi-frame
+            if data[2] == 0x43:
+                num_dtcs = data[3]
+                dtc_bytes.extend(data[4:8])
+                # Send Flow Control
+                fc_msg = can.Message(arbitration_id=OBD_REQUEST_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+                bus.send(fc_msg)
+                
+        elif pci == 2: # Consecutive frame
+            dtc_bytes.extend(data[1:])
+            # We break aggressively here since we just want whatever we collected quickly for safety
+            if len(dtc_bytes) >= 6: # Roughly enough for 3 minimum 
+                break
+                
+    # Parse the bytes 2 at a time into string DTCs
+    for i in range(0, len(dtc_bytes) - 1, 2):
+        code = decode_dtc(dtc_bytes[i], dtc_bytes[i+1])
+        if code:
+            dtcs.append(code)
+            
+    return list(set(dtcs)) if dtcs else ["No Errors Found"]
+
 
 def parse_vin_response(bus):
     """
@@ -199,18 +272,49 @@ def request_and_read(bus, mode, pid, parser_func):
 
 # --- PARSERS ---
 
+def find_data_offset(data, mode, pid):
+    """Finds where the actual data starts by looking for the Mode+0x40 and PID bytes."""
+    try:
+        # data[0] is usually the length of the valid ISO-TP payload
+        
+        # In a standard response: 
+        # data[1] = 0x41 (Mode 1 response)
+        # data[2] = PID
+        if data[1] == (mode + 0x40) and data[2] == pid:
+            return 3
+            
+        # Sometimes there's an extra padding byte or PCI byte shifting it
+        # Try searching for the sequence
+        for i in range(len(data) - 1):
+            if data[i] == (mode + 0x40) and data[i+1] == pid:
+                return i + 2
+    except IndexError:
+        pass
+    return None
+
 def parse_speed(data):
-    return data[3] # km/h (int)
+    offset = find_data_offset(data, MODE_CURRENT_DATA, PID_VEHICLE_SPEED)
+    if offset and offset < len(data):
+        return data[offset] # km/h (int)
+    return None
 
 def parse_fuel(data):
-    return (data[3] * 100) / 255 # %
+    offset = find_data_offset(data, MODE_CURRENT_DATA, PID_FUEL_LEVEL)
+    if offset and offset < len(data):
+        return (data[offset] * 100) / 255.0 # %
+    return None
 
 def parse_voltage(data):
-    return ((data[3] * 256) + data[4]) / 1000.0 # V
+    offset = find_data_offset(data, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE)
+    if offset and offset + 1 < len(data):
+        return ((data[offset] * 256) + data[offset+1]) / 1000.0 # V
+    return None
 
 def parse_odometer(data):
-    if data[0] >= 6:
-        return (data[3] * (2**24) + data[4] * (2**16) + data[5] * (2**8) + data[6]) / 10.0 # km
+    offset = find_data_offset(data, MODE_CURRENT_DATA, PID_ODOMETER)
+    # Distance is 4 bytes
+    if offset and offset + 3 < len(data):
+        return (data[offset] * (2**24) + data[offset+1] * (2**16) + data[offset+2] * (2**8) + data[offset+3]) / 10.0 # km
     return None
 
 
@@ -246,7 +350,7 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
     while not stop_event.is_set():
         loop_start_time = time.time()
         
-        # 0. Check for commands from the Consumer Thread (like BEEP or REQ_VIN)
+        # 0. Check for commands from the Consumer Thread (like BEEP, REQ_VIN, REQ_DTC)
         try:
             command = command_queue.get_nowait()
             if command == "BEEP":
@@ -258,6 +362,15 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
                 # Send it back to the consumer via the response queue
                 try:
                     response_queue.put_nowait({"type": "VIN_RESPONSE", "data": vin})
+                except queue.Full:
+                    pass
+            elif command == "REQ_DTC":
+                print("\n[Reader] Consumer requested Engine Codes (DTCs). Querying car...")
+                dtcs = parse_dtc_response(bus)
+                
+                # Send it back to the consumer via the response queue
+                try:
+                    response_queue.put_nowait({"type": "DTC_RESPONSE", "data": dtcs})
                 except queue.Full:
                     pass
                 
@@ -296,6 +409,7 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             last_time = current_time
 
         # 3. Create Data Packet
+        # If fuel is None, it means the Toyota does not support the standard OBD-II PID 0x2F
         packet = {
             "timestamp": datetime.now().isoformat(),
             "speed_kmh": current_speed if current_speed is not None else -1,
@@ -339,6 +453,12 @@ def keyboard_listener(command_queue, stop_event):
                     command_queue.put_nowait("BEEP")
                 except queue.Full:
                     pass
+            elif user_input == 'e':
+                print("\n[Consumer] Manual DTC Check triggered via keyboard (Enter)!")
+                try:
+                    command_queue.put_nowait("REQ_DTC")
+                except queue.Full:
+                    pass
         except EOFError:
             break
         except Exception:
@@ -355,7 +475,9 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
     print("[Consumer] Ready to receive data.")
     
     # Start the simple terminal keyboard listener in the background
-    print("[Consumer] Keyboard listener active: Type 'b' and press ENTER to send a manual BEEP command.")
+    print("[Consumer] Keyboard listener active:")
+    print("           Type 'b' and press ENTER to send a BEEP command.")
+    print("           Type 'e' and press ENTER to request Engine Error Codes.")
     kb_thread = threading.Thread(target=keyboard_listener, args=(command_queue, stop_event), daemon=True)
     kb_thread.start()
 
@@ -380,6 +502,21 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
     
     # Start the continuous data consumption loop
     while not stop_event.is_set():
+        
+        # Check if the Reader sent back any specific responses (like DTCs)
+        try:
+            resp = response_queue.get_nowait()
+            if resp["type"] == "DTC_RESPONSE":
+                print(f"\n======================================")
+                print(f"[Consumer] ⚠ ENGINE CODES (DTCs) ⚠")
+                for code in resp["data"]:
+                    print(f"           -> {code}")
+                print(f"======================================\n")
+            response_queue.task_done()
+        except queue.Empty:
+            pass
+            
+            
         try:
             # Wait for data, timeout every second to check stop_event
             data = data_queue.get(timeout=1.0)
