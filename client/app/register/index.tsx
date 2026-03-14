@@ -28,7 +28,7 @@ export default function RegisterScreen() {
       alignItems="center"
       padding="$6"
       theme="dark"
-      backgroundColor="$zafiraBackground"
+      backgroundColor="$background"
     >
       <YStack width="100%" maxWidth={400} gap="$4">
         <SizableText
@@ -48,9 +48,9 @@ export default function RegisterScreen() {
             onChangeText={setUsername}
             autoCapitalize="none"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -60,9 +60,9 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -70,10 +70,10 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -81,10 +81,10 @@ export default function RegisterScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
         </YStack>
@@ -93,9 +93,9 @@ export default function RegisterScreen() {
           size="$4"
           onPress={handleRegister}
           marginTop="$4"
-          backgroundColor="$zafiraButton"
-          pressStyle={{ backgroundColor: '$zafiraButtonHover' }}
-          hoverStyle={{ backgroundColor: '$zafiraButtonHover' }}
+          backgroundColor="$button"
+          pressStyle={{ backgroundColor: '$buttonHover' }}
+          hoverStyle={{ backgroundColor: '$buttonHover' }}
         >
           Register
         </Button>

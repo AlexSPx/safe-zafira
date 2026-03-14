@@ -17,7 +17,7 @@ export default function LoginScreen() {
       alignItems="center"
       padding="$6"
       theme="dark"
-      backgroundColor="$zafiraBackground"
+      backgroundColor="$background"
     >
       <YStack width="100%" maxWidth={400} gap="$4">
         <SizableText
@@ -38,9 +38,9 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -48,10 +48,10 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
         </YStack>
@@ -60,9 +60,9 @@ export default function LoginScreen() {
           size="$4"
           onPress={handleLogin}
           marginTop="$4"
-          backgroundColor="$zafiraButton"
-          pressStyle={{ backgroundColor: '$zafiraButtonHover' }}
-          hoverStyle={{ backgroundColor: '$zafiraButtonHover' }}
+          backgroundColor="$button"
+          pressStyle={{ backgroundColor: '$buttonHover' }}
+          hoverStyle={{ backgroundColor: '$buttonHover' }}
         >
           <SizableText whiteSpace="normal" numberOfLines={0}>Login</SizableText>
         </Button>
