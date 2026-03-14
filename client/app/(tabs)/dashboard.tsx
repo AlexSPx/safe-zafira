@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
 import { ScrollView, TouchableOpacity } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { useBLEContext } from '../context/BLEContext';
+import { router } from 'expo-router';
+import { useBLEContext } from '../../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
@@ -38,40 +38,24 @@ export default function Dashboard() {
     );
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
-      <YStack f={1} backgroundColor="$background">
-        <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">
-            <SizableText
-              color="$textLight"
-              fontSize={24}
-              fontWeight="700"
-              lineHeight={32}
-            >
-              Garage
-            </SizableText>
-            <TouchableOpacity onPress={handlePair}>
-              <XStack
-                backgroundColor="$primarySoft"
-                px="$4"
-                py="$2"
-                borderRadius={20}
-                ai="center"
-                gap="$2"
-              >
-                <Plus size={16} color={theme.textLight?.val} />
-                <SizableText color="$textLight" fontSize={14} fontWeight="700">
-                  Pair Device
-                </SizableText>
-              </XStack>
-            </TouchableOpacity>
-          </XStack>
+    return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
+            <YStack f={1} backgroundColor="$background">
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                    {/* Top Bar */}
+                    <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">
+                        <SizableText color="$textLight" fontSize={24} fontWeight="700" lineHeight={32}>
+                            Garage
+                        </SizableText>
+                        <TouchableOpacity onPress={handlePair}>
+                            <XStack backgroundColor="$primarySoft" px="$4" py="$2" borderRadius={20} ai="center" gap="$2">
+                                <Plus size={16} color={theme.textLight?.val} />
+                                <SizableText color="$textLight" fontSize={14} fontWeight="700">
+                                    Pair Device
+                                </SizableText>
+                            </XStack>
+                        </TouchableOpacity>
+                    </XStack>
 
           <XStack jc="space-between" ai="center" px="$4" py="$4">
             <TouchableOpacity onPress={prevVehicle}>

@@ -12,8 +12,8 @@ import {
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, Modal } from 'react-native';
-import { FriendRow } from '../components/FriendRow';
-import { RowSeparator } from '../components/RowSeparator';
+import { FriendRow } from '../../components/FriendRow';
+import { RowSeparator } from '../../components/RowSeparator';
 import { Plus, UserRoundX, X } from 'lucide-react-native';
 
 const initialFriends = [

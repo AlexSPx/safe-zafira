@@ -9,8 +9,8 @@ import {
 } from 'tamagui';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ExpandableItem } from '../components/ExpandableItem';
-import { RowSeparator } from '../components/RowSeparator';
+import { ExpandableItem } from '../../components/ExpandableItem';
+import { RowSeparator } from '../../components/RowSeparator';
 import { AlertTriangle, SearchX } from 'lucide-react-native';
 
 const diagnosisData = [

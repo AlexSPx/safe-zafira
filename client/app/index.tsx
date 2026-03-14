@@ -41,7 +41,7 @@ export default function Index() {
           </Link>
 
           <Button
-            onPress={() => router.push('/dashboard')}
+            onPress={() => router.push('/(tabs)/dashboard')}
             size="$5"
             backgroundColor="$button"
             pressStyle={{ backgroundColor: '$buttonHover' }}
@@ -50,19 +50,6 @@ export default function Index() {
           >
             <SizableText color="$textLight" fontWeight="bold">
               Dashboard
-            </SizableText>
-          </Button>
-
-          <Button
-            onPress={() => router.push('/friends')}
-            size="$5"
-            backgroundColor="$button"
-            pressStyle={{ backgroundColor: '$buttonHover' }}
-            icon={<LayoutDashboard size={20} color="white" />}
-            width={250}
-          >
-            <SizableText color="$textLight" fontWeight="bold">
-              Friends
             </SizableText>
           </Button>
         </YStack>
