@@ -1,4 +1,4 @@
-package com.zafira.safe_zafira;
+package com.zafira;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
