@@ -1,11 +1,11 @@
-package com.zafira.user;
+package com.zafira.safe_zafira.user;
 
-import com.zafira.sec.jwt.JwtUtility;
-import com.zafira.user.exceptions.UserAlreadyExistsException;
-import com.zafira.user.exceptions.UserDoesntExistException;
-import com.zafira.user.exceptions.WrongPasswordException;
-import com.zafira.user.model.AuthRequest;
-import com.zafira.user.model.AuthResponse;
+import com.zafira.safe_zafira.jwt.JwtUtility;
+import com.zafira.safe_zafira.user.exceptions.UserAlreadyExistsException;
+import com.zafira.safe_zafira.user.exceptions.UserDoesntExistException;
+import com.zafira.safe_zafira.user.exceptions.WrongPasswordException;
+import com.zafira.safe_zafira.user.model.AuthRequest;
+import com.zafira.safe_zafira.user.model.AuthResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

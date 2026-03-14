@@ -1,4 +1,4 @@
-package com.zafira.vehicle.model;
+package com.zafira.safe_zafira.model;
 
 import org.springframework.web.bind.annotation.RestController;
 

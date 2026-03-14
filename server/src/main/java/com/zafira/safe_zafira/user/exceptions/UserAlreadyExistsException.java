@@ -1,4 +1,4 @@
-package com.zafira.user.exceptions;
+package com.zafira.safe_zafira.user.exceptions;
 
 public class UserAlreadyExistsException extends Exception
 {

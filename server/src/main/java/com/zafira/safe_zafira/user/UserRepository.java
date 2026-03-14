@@ -1,6 +1,6 @@
-package com.zafira.user;
+package com.zafira.safe_zafira.user;
 
-import com.zafira.user.model.User;
+import com.zafira.safe_zafira.user.model.User;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;

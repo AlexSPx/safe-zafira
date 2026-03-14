@@ -8,9 +8,14 @@ services:
       - POSTGRES_USER=zafira
       - POSTGRES_PASSWORD=zafira
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zafira -d zafira_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: .
@@ -21,7 +26,8 @@ services:
       - SPRING_DATASOURCE_USERNAME=zafira
       - SPRING_DATASOURCE_PASSWORD=zafira
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     deploy:
       resources:
         limits:

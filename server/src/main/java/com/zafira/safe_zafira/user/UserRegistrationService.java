@@ -1,6 +1,6 @@
-package com.zafira.user;
+package com.zafira.safe_zafira.user;
 
-import com.zafira.user.exceptions.UserAlreadyExistsException;
+import com.zafira.safe_zafira.user.exceptions.UserAlreadyExistsException;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;

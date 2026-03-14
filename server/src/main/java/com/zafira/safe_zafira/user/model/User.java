@@ -1,4 +1,4 @@
-package com.zafira.user.model;
+package com.zafira.safe_zafira.user.model;
 
 public class User
 {
