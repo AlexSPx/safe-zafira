@@ -1,17 +1,5 @@
 import React, { useState } from 'react';
-import {
-  YStack,
-  XStack,
-  SizableText,
-  H1,
-  H4,
-  Button,
-  Card,
-  Separator,
-  Square,
-  Circle,
-  useTheme,
-} from 'tamagui';
+import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
@@ -59,7 +47,6 @@ export default function Dashboard() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {/* Top Bar */}
           <XStack jc="space-between" ai="center" px="$4" pt="$4" pb="$2">
             <SizableText
               color="$textLight"
