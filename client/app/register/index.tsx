@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { YStack, XStack, Text, Input, Button, SizableText } from 'tamagui';
 import { Link } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -22,14 +23,15 @@ export default function RegisterScreen() {
   };
 
   return (
-    <YStack
-      flex={1}
-      justifyContent="center"
-      alignItems="center"
-      padding="$6"
-      theme="dark"
-      backgroundColor="$zafiraBackground"
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+      <YStack
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        padding="$6"
+        theme="dark"
+        backgroundColor="$background"
+      >
       <YStack width="100%" maxWidth={400} gap="$4">
         <SizableText
           size="$8"
@@ -48,9 +50,9 @@ export default function RegisterScreen() {
             onChangeText={setUsername}
             autoCapitalize="none"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -60,9 +62,9 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -70,10 +72,10 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -81,10 +83,10 @@ export default function RegisterScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
         </YStack>
@@ -93,22 +95,23 @@ export default function RegisterScreen() {
           size="$4"
           onPress={handleRegister}
           marginTop="$4"
-          backgroundColor="$zafiraButton"
-          pressStyle={{ backgroundColor: '$zafiraButtonHover' }}
-          hoverStyle={{ backgroundColor: '$zafiraButtonHover' }}
+          backgroundColor="$button"
+          pressStyle={{ backgroundColor: '$buttonHover' }}
+          hoverStyle={{ backgroundColor: '$buttonHover' }}
         >
           Register
         </Button>
 
         <XStack justifyContent="center" marginTop="$4" gap="$2">
-          <Text color="$textLight">Already have an account?</Text>
+          <SizableText color="$textLight">Already have an account?</SizableText>
           <Link href="/login" asChild>
-            <Text color="$textLight" fontWeight="bold">
+            <SizableText color="$textLight" numberOfLines={0} fontWeight="bold">
               Log in
-            </Text>
+            </SizableText>
           </Link>
         </XStack>
       </YStack>
-    </YStack>
+      </YStack>
+    </SafeAreaView>
   );
 }

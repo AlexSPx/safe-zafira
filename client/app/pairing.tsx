@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { YStack, XStack, Text, H1, H4, Button, Card, Separator, Circle, Spinner } from 'tamagui';
+import { YStack, XStack, SizableText, Text, H1, H4, Button, Card, Separator, Circle, Spinner } from 'tamagui';
 import { FlatList } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PairingScreen() {
     const { requestPermissions, scanForDevices, allDevices, connectToDevice, connectedDevice, isScanning, isConnecting } = useBLEContext();
@@ -21,11 +22,12 @@ export default function PairingScreen() {
     };
 
     return (
-        <YStack f={1} backgroundColor="$background" p="$4">
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+            <YStack f={1} backgroundColor="$background" p="$4">
             <Stack.Screen options={{ title: 'Pair Telemetry Node', headerBackVisible: false }} />
 
             <H1 size="$7" mb="$2">Discover Devices</H1>
-            <Text color="$textMuted" mb="$6">Make sure your Node is plugged in and the car's ignition is powered on.</Text>
+            <SizableText   color="$textMuted" mb="$6">Make sure your Node is plugged in and the car's ignition is powered on.</SizableText>
 
             <Button
                 size="$5"
@@ -47,13 +49,13 @@ export default function PairingScreen() {
                 ListEmptyComponent={() => (
                     <YStack ai="center" jc="center" p="$4" mt="$4" gap="$3">
                         {isScanning ? (
-                            <Text color="$textMuted" textAlign="center">Searching for nodes nearby...</Text>
+                            <SizableText   color="$textMuted" textAlign="center">Searching for nodes nearby...</SizableText>
                         ) : (
                             <>
                                 <Circle size={64} backgroundColor="$surface" elevation={2}>
-                                    <Text fontSize={32}>📡</Text>
+                                    <SizableText   fontSize={32}>📡</SizableText>
                                 </Circle>
-                                <Text color="$textMuted" textAlign="center">No nodes found yet. Press scan to begin.</Text>
+                                <SizableText   color="$textMuted" textAlign="center">No nodes found yet. Press scan to begin.</SizableText>
                             </>
                         )}
                     </YStack>
@@ -69,17 +71,17 @@ export default function PairingScreen() {
                                 <XStack jc="space-between" ai="center" p="$4">
                                     <YStack f={1}>
                                         <XStack ai="center" gap="$2">
-                                            <Text fontSize={16}>🚙</Text>
+                                            <SizableText   fontSize={16}>🚙</SizableText>
                                             <H4 color="$color">{item.name || item.localName || 'Unknown Device'}</H4>
                                         </XStack>
-                                        <Text color="$textMuted">{item.id}</Text>
+                                        <SizableText   color="$textMuted">{item.id}</SizableText>
                                     </YStack>
 
                                     <Circle size={44} backgroundColor="$primary" elevation={1}>
                                         {isConnecting ? (
                                             <Spinner color="white" />
                                         ) : (
-                                            <Text fontSize={20}>🔗</Text>
+                                            <SizableText   fontSize={20}>🔗</SizableText>
                                         )}
                                     </Circle>
                                 </XStack>
@@ -89,5 +91,6 @@ export default function PairingScreen() {
                 }}
             />
         </YStack>
+        </SafeAreaView>
     );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { YStack, XStack, Text, Input, Button, SizableText } from 'tamagui';
 import { Link } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -11,14 +12,15 @@ export default function LoginScreen() {
   };
 
   return (
-    <YStack
-      flex={1}
-      justifyContent="center"
-      alignItems="center"
-      padding="$6"
-      theme="dark"
-      backgroundColor="$zafiraBackground"
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#57245d' }}>
+      <YStack
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        padding="$6"
+        theme="dark"
+        backgroundColor="$background"
+      >
       <YStack width="100%" maxWidth={400} gap="$4">
         <SizableText
           size="$8"
@@ -38,9 +40,9 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
           <Input
@@ -48,10 +50,10 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             color="$textDark"
-            placeholderTextColor="$zafiraInputPlaceholderText"
+            placeholderTextColor="$inputPlaceholderText"
             secureTextEntry
             size="$4"
-            backgroundColor="$zafiraInput"
+            backgroundColor="$input"
             borderColor="transparent"
           />
         </YStack>
@@ -60,22 +62,23 @@ export default function LoginScreen() {
           size="$4"
           onPress={handleLogin}
           marginTop="$4"
-          backgroundColor="$zafiraButton"
-          pressStyle={{ backgroundColor: '$zafiraButtonHover' }}
-          hoverStyle={{ backgroundColor: '$zafiraButtonHover' }}
+          backgroundColor="$button"
+          pressStyle={{ backgroundColor: '$buttonHover' }}
+          hoverStyle={{ backgroundColor: '$buttonHover' }}
         >
-          Login
+          <SizableText whiteSpace="normal" numberOfLines={0}>Login</SizableText>
         </Button>
 
         <XStack justifyContent="center" marginTop="$4" gap="$2">
-          <Text color="$textLight">Don't have an account?</Text>
+          <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight">Don't have an account?</SizableText>
           <Link href="/register" asChild>
-            <Text color="$textLight" fontWeight="bold">
+            <SizableText whiteSpace="normal" numberOfLines={0} color="$textLight" fontWeight="bold">
               Register
-            </Text>
+            </SizableText>
           </Link>
         </XStack>
       </YStack>
-    </YStack>
+      </YStack>
+    </SafeAreaView>
   );
 }
