@@ -63,6 +63,7 @@ PID_VIN = 0x02
 
 
 CONFIG_FILE = "car_config.json"
+FUEL_TANK_CAPACITY = 42.0  # 2007 Toyota Yaris fuel tank capacity in liters
 
 def load_config():
     """Loads the permanent car configuration file."""
@@ -313,28 +314,26 @@ def trigger_beep(bus, config):
         print(f"[CAN Writer] Failed to send beep command: {e}")
 
 
-def request_and_read(bus, mode, pid, parser_func, arb_id=None, resp_id_range=None):
+def request_and_read(bus, mode, pid, parser_func, arb_id=None, resp_id_range=None,
+                     timeout_s=0.3):
     """Sends a request, waits for a response, and parses it.
     arb_id: override CAN ID for request (e.g. 0x7C0 for Toyota proprietary).
     resp_id_range: tuple (min, max) for expected response IDs.
+    timeout_s: max seconds to wait for a response (default 0.3s).
     """
     send_obd_request(bus, mode, pid, arb_id=arb_id)
     
     resp_min, resp_max = resp_id_range if resp_id_range else (0x7E8, 0x7EF)
-    timeout = time.time() + 1.5  # Increased from 0.2s — the 2007 Yaris ECU can be slow
-    while time.time() < timeout:
-        msg = bus.recv(0.1)
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        msg = bus.recv(0.05)
         if msg and resp_min <= msg.arbitration_id <= resp_max:
             raw_logger.debug(f"PID RX  ID=0x{msg.arbitration_id:03X} DATA={msg.data.hex(' ')} (expecting mode=0x{mode:02X} pid=0x{pid:02X})")
-            # Let the parser itself validate the response bytes using find_data_offset.
-            # We do NOT check msg.data[1] == (mode + 0x40) here because:
-            # (a) the response byte position can vary, and
-            # (b) mode + 0x40 may not be in data[1] for proprietary Toyota frames.
             result = parser_func(msg.data)
             if result is not None:
                 parsed_logger.debug(f"PID 0x{pid:02X} parsed -> {result}")
                 return result
-    parsed_logger.debug(f"PID 0x{pid:02X} (mode 0x{mode:02X}) -> no response (timeout)")
+    parsed_logger.debug(f"PID 0x{pid:02X} (mode 0x{mode:02X}) -> no response (timeout {timeout_s}s)")
     return None
 
 # --- PARSERS ---
@@ -377,26 +376,40 @@ def parse_voltage(data):
         return ((data[offset] * 256) + data[offset+1]) / 1000.0 # V
     return None
 
-def parse_toyota_odo(data):
-    """Parse Toyota proprietary Service 0x21, PID 0x29 odometer response.
-    Response format on 0x7C8: [len] [0x61] [0x29] [ODO_HIGH] [ODO_MID] [ODO_LOW] ...
-    The odometer bytes encode the total km reading.
+def parse_toyota_odo_fuel(data):
+    """Parse Toyota proprietary Service 0x21, PID 0x29 response.
+    Response format on 0x7C8: [len] [0x61] [0x29] [ODO_H] [ODO_M] [ODO_L] [FUEL] ...
+    - ODO: 3-byte big-endian odometer in km
+    - FUEL: 1 byte, fuel level in 0.5-liter increments
+    Returns dict {"odo_km": int, "fuel_liters": float} or None.
     """
     offset = find_data_offset(data, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL)
-    if offset and offset + 2 < len(data):
-        # 3-byte big-endian odometer value in km
+    if offset is None:
+        return None
+
+    result = {}
+
+    # Odometer: 3 bytes at offset
+    if offset + 2 < len(data):
         odo_km = (data[offset] << 16) | (data[offset+1] << 8) | data[offset+2]
-        parsed_logger.debug(f"Toyota ODO raw bytes: {data[offset]:02X} {data[offset+1]:02X} {data[offset+2]:02X} -> {odo_km} km")
-        return odo_km
-    return None
+        result["odo_km"] = odo_km
+        parsed_logger.debug(f"Toyota ODO: {data[offset]:02X} {data[offset+1]:02X} {data[offset+2]:02X} -> {odo_km} km")
+
+    # Fuel: 1 byte at offset+3 (0.5L increments)
+    if offset + 3 < len(data):
+        fuel_byte = data[offset + 3]
+        fuel_liters = fuel_byte * 0.5
+        result["fuel_liters"] = fuel_liters
+        parsed_logger.debug(f"Toyota FUEL: 0x{fuel_byte:02X} -> {fuel_liters} L")
+
+    return result if result else None
 
 
 # --- THREAD 1: CAN Data Producer & Command Executor ---
 def can_reader_thread(interface, data_queue, command_queue, response_queue, stop_event):
     """
     Continuously polls the CAN bus for live data and calculates physics-based events.
-    Packs the data and sends it to the queue every 500ms.
-    Reads config file, spawns background listener, and executes commands.
+    Uses staggered polling: speed every 250ms, voltage/odo+fuel alternating.
     """
     config = load_config()
     veh = config.get("vehicle", {})
@@ -417,6 +430,12 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
 
     last_speed = 0
     last_time = time.time()
+    loop_counter = 0
+
+    # Cached values persisted across loop iterations (updated on alternating loops)
+    last_voltage      = None
+    last_mileage      = None
+    last_fuel_liters  = None
     
     print("[Reader] Polling started.")
     
@@ -451,22 +470,41 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         except queue.Empty:
             pass
         
-        # 1. Read Raw Active OBD Data
-        current_speed = request_and_read(bus, MODE_CURRENT_DATA, PID_VEHICLE_SPEED, parse_speed)
-        fuel = request_and_read(bus, MODE_CURRENT_DATA, PID_FUEL_LEVEL, parse_fuel)
-        voltage = request_and_read(bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage)
-        # Toyota 2007 Yaris does NOT support standard PID 0xA6 for odometer.
-        # Use Toyota proprietary Service 0x21, PID 0x29 via CAN ID 0x7C0.
-        mileage = request_and_read(
-            bus, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL, parse_toyota_odo,
-            arb_id=TOYOTA_PROP_REQUEST_ID,
-            resp_id_range=(TOYOTA_PROP_RESPONSE_ID, TOYOTA_PROP_RESPONSE_ID)
+        # ── 1. STAGGERED OBD POLLING ──────────────────────────────────────
+        # Speed is polled EVERY loop for minimal latency.
+        # Voltage and Toyota odo+fuel alternate on even/odd loops.
+        # This halves the requests per loop → speed updates ~2x faster.
+        
+        current_speed = request_and_read(
+            bus, MODE_CURRENT_DATA, PID_VEHICLE_SPEED, parse_speed
         )
-        
-        # Note: We pull brake level directly from the passive CAN listener instead of OBD polling!
+
+        if loop_counter % 2 == 0:
+            # Even loop: read voltage
+            voltage = request_and_read(
+                bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage
+            )
+            if voltage is not None:
+                last_voltage = voltage
+        else:
+            # Odd loop: read Toyota proprietary odo + fuel (single PID)
+            toyota_result = request_and_read(
+                bus, TOYOTA_MODE_ENHANCED, TOYOTA_PID_ODO_FUEL,
+                parse_toyota_odo_fuel,
+                arb_id=TOYOTA_PROP_REQUEST_ID,
+                resp_id_range=(TOYOTA_PROP_RESPONSE_ID, TOYOTA_PROP_RESPONSE_ID),
+                timeout_s=0.5,  # proprietary PIDs can be slower
+            )
+            if toyota_result:
+                if "odo_km" in toyota_result:
+                    last_mileage = toyota_result["odo_km"]
+                if "fuel_liters" in toyota_result:
+                    last_fuel_liters = toyota_result["fuel_liters"]
+
+        # Brake level from passive CAN listener (no polling needed)
         brake_level = listener.brake_level
-        
-        # 2. Physics / Safety Calculations (Fallback if passive CAN isn't working)
+
+        # ── 2. PHYSICS / SAFETY CALCULATIONS ─────────────────────────────
         abs_activated = listener.abs_activated
         airbags_open = listener.airbags_open
         
@@ -477,7 +515,6 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             if time_diff > 0:
                 deceleration = (last_speed - current_speed) / time_diff
                 
-                # Flag Logic based on deceleration (Physics fallback overrides to True if physical drop implies crash)
                 if deceleration > 30: 
                     airbags_open = True
                     abs_activated = True
@@ -487,23 +524,26 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             last_speed = current_speed
             last_time = current_time
 
-        # 3. Create Data Packet
-        # If fuel is None, it means the Toyota does not support the standard OBD-II PID 0x2F
+        # ── 3. CREATE DATA PACKET ────────────────────────────────────────
+        # Fuel: convert liters to percentage (Yaris tank ≈ 42L)
+        fuel_percent = None
+        if last_fuel_liters is not None:
+            fuel_percent = round((last_fuel_liters / FUEL_TANK_CAPACITY) * 100, 1)
+
         packet = {
             "timestamp": datetime.now().isoformat(),
             "speed_kmh": current_speed if current_speed is not None else -1,
-            "fuel_percent": round(fuel, 1) if fuel is not None else -1,
-            "battery_v": round(voltage, 2) if voltage is not None else -1,
-            "mileage_km": round(mileage, 1) if mileage is not None else -1,
+            "fuel_percent": fuel_percent if fuel_percent is not None else -1,
+            "battery_v": round(last_voltage, 2) if last_voltage is not None else -1,
+            "mileage_km": round(last_mileage, 1) if last_mileage is not None else -1,
             "brake_level_percent": round(brake_level, 1),
             "abs_activated": abs_activated,
             "airbags_open": airbags_open
         }
         
-        # Log parsed telemetry to file
         parsed_logger.info(json.dumps(packet))
         
-        # 4. Send to Consumer — drop oldest if full to keep data fresh
+        # ── 4. SEND TO CONSUMER ──────────────────────────────────────────
         try:
             data_queue.put_nowait(packet)
         except queue.Full:
@@ -513,9 +553,11 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
             except queue.Empty:
                 pass
 
-        # 5. Enforce ~500ms loop
+        loop_counter += 1
+
+        # ── 5. ENFORCE ~250ms LOOP ───────────────────────────────────────
         elapsed = time.time() - loop_start_time
-        sleep_time = max(0, 0.5 - elapsed)
+        sleep_time = max(0, 0.25 - elapsed)
         time.sleep(sleep_time)
 
     notifier.stop()
