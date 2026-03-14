@@ -78,21 +78,48 @@ def gps_thread(port: str = "/dev/serial0", baudrate: int = 9600,
         return
     
     first_nmea = True
+    reopen_attempts = 0
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 raw = ser.readline()
-            except Exception as e:
+                reopen_attempts = 0   # successful read — reset error counter
+            except serial.SerialException as e:
                 logger.warning(f"[GPS] Serial read error: {e}")
+                # The file descriptor is in an EOF/HUP state (UART FIFO overflow
+                # or a spurious hangup).  Continuing to read the same fd just
+                # returns empty bytes every call.  We must close and reopen the
+                # port to clear the error state and flush the hardware buffer.
+                try:
+                    ser.close()
+                except Exception:
+                    pass
+                reopen_attempts += 1
+                delay = min(2 ** reopen_attempts, 30)
+                logger.info(f"[GPS] Reopening {port} in {delay}s "
+                            f"(attempt {reopen_attempts})...")
+                time.sleep(delay)
+                if stop_event is not None and stop_event.is_set():
+                    break
+                try:
+                    ser = serial.Serial(port=port, baudrate=baudrate, timeout=1)
+                    ser.reset_input_buffer()
+                    logger.info("[GPS] Port reopened OK.")
+                except Exception as e2:
+                    logger.error(f"[GPS] Cannot reopen {port}: {e2}")
+                continue
+            except Exception as e:
+                logger.warning(f"[GPS] Unexpected read error: {e}")
                 time.sleep(1)
                 continue
 
-            # Throttle: GPS outputs ~5-7 sentences per 1s burst at 9600 baud.
-            # Pacing reads at ~10 Hz prevents exhausting the RPi UART buffer
-            # while still capturing every sentence.
-            time.sleep(0.1)
-
+            # Read continuously — no sleep between sentences.
+            # Draining the kernel TTY receive buffer as fast as possible is
+            # what prevents UART FIFO overflow.  The GPS module outputs at 1 Hz
+            # so gps_state updates are naturally rate-limited; adding an
+            # artificial sleep here would let the buffer fill up over time.
+            #
             # readline() returns b'' on timeout — that's normal, just loop
             if not raw or not raw.strip():
                 continue
