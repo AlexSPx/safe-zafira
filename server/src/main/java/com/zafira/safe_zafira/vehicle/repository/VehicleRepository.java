@@ -31,7 +31,7 @@ public class VehicleRepository
 
 	public Long save(VehicleInitiationRequest vehicleData)
 	{
-		String sql = "INSERT INTO vehicle (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?)";
+		String sql = "INSERT INTO vehicle (vehicle_no, vin, make, model, batteryVoltage) VALUES (?, ?, ?, ?, ?) RETURNING id";
 
 		return jdbcTemplate.queryForObject(
 				sql,
@@ -58,18 +58,20 @@ public class VehicleRepository
 	public void enterData(VehicleData data)
 	{
 		String sql = """
-				INSERT INTO vehicle_data (vehicle_no, battery, dangers, diagnostics, isCrashed, location, speed, ts)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO vehicle_data (vehicle_no, battery, dangers, diagnostics, isCrashed, latitude, longitude, speed, ts)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		jdbcTemplate.update(
 				sql,
-				data.battery(),
-				data.dangers(),
-				data.diagnostics(),
-				data.isCrashed(),
-				data.location(),
-				data.speed(),
+				"FIXME_VEHICLE_ID",
+				data.battery().orElse(null),
+				String.join(",", data.dangers()),
+				data.diagnostics().toString(),
+				data.isCrashed().orElse(false),
+				data.location().map(loc -> loc.x()).orElse(0.0),
+				data.location().map(loc -> loc.y()).orElse(0.0),
+				data.speed().orElse(null),
 				new Date()
 						   );
 	}

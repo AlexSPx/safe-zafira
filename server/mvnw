@@ -32,6 +32,10 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
+# Project-level Java version override
+JAVA_HOME=/Users/martin.marinkov/Library/Java/JavaVirtualMachines/openjdk-25.0.1/Contents/Home
+export JAVA_HOME
+
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in
