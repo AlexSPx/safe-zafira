@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
-import { ScrollView, TouchableOpacity } from 'react-native';
+import { Linking, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useBLEContext } from '../../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import {
   History,
 } from 'lucide-react-native';
 import { QuickStat } from '../../components/QuickStat';
+import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
 
 const pairedVehicles = [
   { id: '1', make: 'TOYOTA', model: 'Yaris' },
@@ -37,6 +38,10 @@ export default function Dashboard() {
     setVehicleIndex(
       (prev) => (prev - 1 + pairedVehicles.length) % pairedVehicles.length,
     );
+  };
+
+  const triggerEmergencyCall = () => {
+    RNImmediatePhoneCall.immediatePhoneCall('tel:0892469684');
   };
 
   return (
@@ -67,6 +72,21 @@ export default function Dashboard() {
                 <Plus size={16} color={theme.textLight?.val} />
                 <SizableText color="$textLight" fontSize={14} fontWeight="700">
                   Pair Device
+                </SizableText>
+              </XStack>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={triggerEmergencyCall}>
+              <XStack
+                backgroundColor="$buttonSecondary"
+                px="$4"
+                py="$2"
+                borderRadius={20}
+                ai="center"
+                gap="$2"
+              >
+                <Plus size={16} color={theme.textLight?.val} />
+                <SizableText color="$textLight" fontSize={14} fontWeight="700">
+                  Call Seish
                 </SizableText>
               </XStack>
             </TouchableOpacity>

@@ -26,7 +26,8 @@
       "permissions": [
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.BLUETOOTH_CONNECT"
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.CALL_PHONE"
       ],
       "package": "com.alexspx.safezafira"
     },
