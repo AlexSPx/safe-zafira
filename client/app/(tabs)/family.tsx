@@ -7,7 +7,7 @@ import {
   Circle,
   useTheme,
 } from 'tamagui';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { FriendRow } from '../../components/FriendRow';
@@ -51,6 +51,13 @@ export default function FamilyScreen() {
     } catch {
       // error is already set in store
     }
+  };
+
+  const handleMemberPress = (memberId: number, memberName: string) => {
+    router.push({
+      pathname: '/familyMemberStats',
+      params: { memberId: memberId.toString(), memberName },
+    });
   };
 
   return (
@@ -135,26 +142,10 @@ export default function FamilyScreen() {
                 fontSize={14}
                 textAlign="center"
                 maxWidth={260}
-                mb="$6"
               >
                 You don't have any friends added. Tap "Add Friend" to get
                 started.
               </SizableText>
-              <TouchableOpacity onPress={() => setIsModalVisible(true)}>
-                <XStack
-                  backgroundColor="$button"
-                  px="$6"
-                  py="$3"
-                  borderRadius={24}
-                  ai="center"
-                  gap="$2"
-                >
-                  <Plus size={18} color={theme.textLight?.val} />
-                  <SizableText color="$textLight" fontSize={15} fontWeight="700">
-                    Add Friend
-                  </SizableText>
-                </XStack>
-              </TouchableOpacity>
             </YStack>
           ) : (
             <YStack px="$4" mt="$4">
@@ -176,7 +167,12 @@ export default function FamilyScreen() {
               >
                 {members.map((member, index) => (
                   <React.Fragment key={member.id}>
-                    <FriendRow name={member.username} />
+                    <FriendRow
+                      name={member.username}
+                      onPress={() =>
+                        handleMemberPress(member.id, member.username)
+                      }
+                    />
                     {index < members.length - 1 && <RowSeparator />}
                   </React.Fragment>
                 ))}

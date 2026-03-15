@@ -45,10 +45,8 @@ export type VehicleStatusSummary = {
   avgBattery: number | null;
   avgBatteryCar: number | null;
   avgFuel: number | null;
+  avgRpm: number | null;
   lastLocation: LocationData | null;
-  allDangers: string[];
-  allDiagnostics: string[];
-  dataPoints: number;
 };
 
 export type VehicleInitiationRequest = {
@@ -64,10 +62,11 @@ class VehicleApiService {
 
   getVehicleData(vehicleId: string): Promise<VehicleDataClient | null> {
     const query = new URLSearchParams({
-      vehicleId,
       device: vehicleId,
     }).toString();
-    return apiClient.get<VehicleDataClient | null>(`/api/vehicles/data?${query}`);
+    return apiClient.get<VehicleDataClient | null>(
+      `/api/vehicles/data?${query}`,
+    );
   }
 
   getVehicleStatistics(minutes: number = 120): Promise<VehicleStatusSummary[]> {
@@ -78,7 +77,6 @@ class VehicleApiService {
 
   getSpeedLimit(vehicleId: string): Promise<number | null> {
     const query = new URLSearchParams({
-      vehicleId,
       device: vehicleId,
     }).toString();
     return apiClient.get<number | null>(`/api/vehicles/speed-limit?${query}`);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { YStack, XStack, SizableText, Square, Circle, useTheme } from 'tamagui';
-import { ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -11,9 +11,13 @@ import {
   CircleGauge,
   BatteryCharging,
   Heart,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { QuickStat } from '../../components/QuickStat';
 import { useVehicles } from '../../hooks/useVehicles';
+import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
+
+const EMERGENCY_NUMBER = '0892469684';
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -25,6 +29,7 @@ export default function Dashboard() {
     selectVehicle,
   } = useVehicles();
   const [vehicleIndex, setVehicleIndex] = useState(0);
+  const [hasCalledEmergency, setHasCalledEmergency] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -51,6 +56,19 @@ export default function Dashboard() {
       setVehicleIndex((prev) => (prev - 1 + vehicles.length) % vehicles.length);
     }
   };
+
+  const showDriverWarning = vehicleData?.dangers?.includes('DRIVER_NOT_AWARE');
+  const crashDetected = vehicleData?.dangers?.includes('CRASH_DETECTED');
+
+  useEffect(() => {
+    if (crashDetected && !hasCalledEmergency) {
+      setHasCalledEmergency(true);
+      RNImmediatePhoneCall.immediatePhoneCall(EMERGENCY_NUMBER);
+    }
+    if (!crashDetected && hasCalledEmergency) {
+      setHasCalledEmergency(false);
+    }
+  }, [crashDetected, hasCalledEmergency]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
@@ -167,9 +185,7 @@ export default function Dashboard() {
                     }
                     label="RPM"
                     value={
-                      vehicleData?.rpm
-                        ? `${vehicleData.rpm.toFixed(0)}%`
-                        : 'N/A'
+                      vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}` : 'N/A'
                     }
                   />
                   <QuickStat
@@ -180,6 +196,34 @@ export default function Dashboard() {
                     }
                   />
                 </XStack>
+                {showDriverWarning && (
+                  <XStack
+                    backgroundColor="#7f1d1d"
+                    borderRadius={16}
+                    p="$4"
+                    ai="center"
+                    gap="$3"
+                    mb="$3"
+                  >
+                    <Circle size={40}>
+                      <AlertTriangle size={22} color="#fca5a5" />
+                    </Circle>
+                    <YStack f={1}>
+                      <SizableText
+                        color="#fca5a5"
+                        fontSize={16}
+                        fontWeight="700"
+                        mb="$1"
+                      >
+                        Be aware of the road!
+                      </SizableText>
+                      <SizableText color="#fecaca" fontSize={13}>
+                        Please keep your eyes on the road and stay alert while
+                        driving.
+                      </SizableText>
+                    </YStack>
+                  </XStack>
+                )}
               </YStack>
             </>
           ) : (
@@ -193,11 +237,22 @@ export default function Dashboard() {
               >
                 <Plus size={32} color={theme.textMuted?.val} />
               </Circle>
-              <SizableText color="$textLight" fontSize={18} fontWeight="600" mb="$2">
+              <SizableText
+                color="$textLight"
+                fontSize={18}
+                fontWeight="600"
+                mb="$2"
+              >
                 No Vehicles Found
               </SizableText>
-              <SizableText color="$textMuted" fontSize={14} textAlign="center" mb="$6">
-                Pair a device to start tracking your vehicle's health and statistics.
+              <SizableText
+                color="$textMuted"
+                fontSize={14}
+                textAlign="center"
+                mb="$6"
+              >
+                Pair a device to start tracking your vehicle's health and
+                statistics.
               </SizableText>
               <TouchableOpacity onPress={handlePair}>
                 <XStack
@@ -209,7 +264,11 @@ export default function Dashboard() {
                   gap="$2"
                 >
                   <Plus size={18} color={theme.textLight?.val} />
-                  <SizableText color="$textLight" fontSize={15} fontWeight="700">
+                  <SizableText
+                    color="$textLight"
+                    fontSize={15}
+                    fontWeight="700"
+                  >
                     Pair New Device
                   </SizableText>
                 </XStack>
