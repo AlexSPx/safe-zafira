@@ -402,8 +402,6 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
     listener = PassiveCANListener(config)
     notifier = can.Notifier(bus, [listener])
 
-    last_speed = 0
-    last_time = time.time()
     loop_counter = 0
 
     # Cached values persisted across loop iterations (updated on alternating loops)
@@ -454,25 +452,9 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         # Brake level from passive CAN listener (no polling needed)
         brake_level = listener.brake_level
 
-        # ── 2. PHYSICS / SAFETY CALCULATIONS ─────────────────────────────
+        # ── 2. SAFETY FLAGS FROM PASSIVE CAN ─────────────────────────────
         abs_activated = listener.abs_activated
         airbags_open = listener.airbags_open
-        
-        if current_speed is not None:
-            current_time = time.time()
-            time_diff = current_time - last_time
-            
-            if time_diff > 0:
-                deceleration = (last_speed - current_speed) / time_diff
-                
-                if deceleration > 30: 
-                    airbags_open = True
-                    abs_activated = True
-                elif deceleration > 10:
-                    abs_activated = True
-                
-            last_speed = current_speed
-            last_time = current_time
 
         # ── 3. CREATE DATA PACKET ────────────────────────────────────────
         # Fuel: Temporary hardcode to 25% (2/8 bars) until exact passive CAN ID is sniffed
