@@ -210,8 +210,8 @@ public class VehicleRepository {
 
         return jdbcTemplate.query(sql, (rs, _) -> {
             LocationData lastLoc = new LocationData(
-                    rs.getDouble("last_lat"),
-                    rs.getDouble("last_lon")
+                    rs.getDouble("last_lon"),
+                    rs.getDouble("last_lat")
             );
 
             java.sql.Array dangersArr = rs.getArray("all_dangers");
