@@ -73,11 +73,11 @@ export const AddFriendModal = ({
             </XStack>
 
             <SizableText color="$textMuted" fontSize={14} mb="$3">
-              Enter your friend's username to send them a friend request.
+              Enter your friend's email to send them a friend request.
             </SizableText>
 
             <Input
-              placeholder="Username"
+              placeholder="Email"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"

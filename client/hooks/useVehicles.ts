@@ -19,6 +19,7 @@ export function useVehicles() {
     try {
       const vehicles = await vehicleService.getVehicles();
       setVehicles(vehicles);
+      setVehicleLoading(false);
     } catch (error) {
       setVehicleError(
         error instanceof Error ? error.message : 'Failed to fetch vehicles',
@@ -47,6 +48,7 @@ export function useVehicles() {
     try {
       const statistics = await vehicleService.getVehicleStatistics(minutes);
       setVehicleStatistics(statistics);
+      setVehicleLoading(false);
     } catch (error) {
       setVehicleError(
         error instanceof Error ? error.message : 'Failed to fetch statistics',
