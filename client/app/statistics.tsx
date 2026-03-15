@@ -15,21 +15,20 @@ import { RowSeparator } from '../components/RowSeparator';
 import {
   Heart,
   BatteryCharging,
-  Fuel,
-  Thermometer,
   Car,
   CheckCircle2,
   Gauge,
   CircleGauge,
-  Disc,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { useVehicles } from '../hooks/useVehicles';
+import { TouchableOpacity } from 'react-native';
 
 export default function StatisticsScreen() {
   const theme = useTheme();
-  const { selectedVehicle, vehicleData, isLoading } = useVehicles();
+  const { selectedVehicle, vehicleData, statistics } = useVehicles();
 
-  if (!selectedVehicle) {
+  if (!selectedVehicle || !vehicleData) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
         <YStack flex={1} ai="center" jc="center">
@@ -56,6 +55,12 @@ export default function StatisticsScreen() {
           contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
           <XStack alignItems="center" gap="$4" mb="$6">
+            <TouchableOpacity onPress={() => router.back()}>
+              <XStack w={40} h={40} jc="center" ai="center">
+                <ChevronLeft size={24} color={theme.textLight?.val} />
+              </XStack>
+            </TouchableOpacity>
+
             <Circle
               size={64}
               backgroundColor="$surface"
@@ -108,9 +113,7 @@ export default function StatisticsScreen() {
             <QuickStat
               icon={<CircleGauge size={18} color={theme.textLight?.val} />}
               label="RPM"
-              value={
-                vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}%` : 'N/A'
-              }
+              value={vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}` : 'N/A'}
             />
             <QuickStat
               icon={<Gauge size={18} color={theme.textLight?.val} />}
@@ -143,8 +146,55 @@ export default function StatisticsScreen() {
             <DataRow label="VIN" value={selectedVehicle.vin} />
             <RowSeparator />
             <DataRow label="Device ID" value={selectedVehicle.vehicleNo} />
-            <DataRow label="Millage" value={selectedVehicle.vehicleNo} />
-            <DataRow label="Steering" value={selectedVehicle.vehicleNo} />
+            <DataRow
+              label="Millage"
+              value={vehicleData.mileage?.toString() ?? 'N/A'}
+            />
+            <DataRow
+              label="Steering"
+              value={vehicleData.steering?.toString() ?? 'N/A'}
+            />
+          </YStack>
+
+          <SizableText
+            color="$textMuted"
+            fontSize={12}
+            letterSpacing={1.5}
+            mb="$3"
+            fontWeight="600"
+          >
+            AGGREGATED DETAILS
+          </SizableText>
+          <YStack
+            backgroundColor="$surface"
+            borderColor="$borderColor"
+            borderWidth={1}
+            paddingHorizontal="$4"
+            borderRadius={20}
+            mb="$6"
+          >
+            <DataRow
+              label="Average speed"
+              value={
+                statistics[0]?.avgSpeed
+                  ? `${statistics[0]?.avgSpeed}km/h`
+                  : 'N/A'
+              }
+            />
+            <RowSeparator />
+            <DataRow
+              label="Max speed"
+              value={
+                statistics[0]?.maxSpeed
+                  ? `${statistics[0]?.maxSpeed}km/h`
+                  : 'N/A'
+              }
+            />
+            <RowSeparator />
+            <DataRow
+              label="Average RPM"
+              value={statistics[0]?.avgRpm?.toString() ?? 'N/A'}
+            />
           </YStack>
 
           <SizableText

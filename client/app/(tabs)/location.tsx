@@ -15,10 +15,7 @@ const LIGHT_STYLE_URL =
 const DARK_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-const getBearing = (
-  from: [number, number],
-  to: [number, number],
-): number => {
+const getBearing = (from: [number, number], to: [number, number]): number => {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const toDeg = (value: number) => (value * 180) / Math.PI;
 
@@ -37,7 +34,6 @@ const getBearing = (
 
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 };
-
 
 export default function LocationScreen() {
   const theme = useTheme();
@@ -90,9 +86,12 @@ export default function LocationScreen() {
     };
   }, []);
 
-  const {vehicleData} = useVehicleStore();
-  const isOverSpeed = vehicleData && vehicleData.speed && vehicleData.speedLimit
-                      && vehicleData.speed > vehicleData.speedLimit;
+  const { vehicleData } = useVehicleStore();
+  const isOverSpeed =
+    vehicleData &&
+    vehicleData.speed &&
+    vehicleData.speedLimit &&
+    vehicleData.speed > vehicleData.speedLimit;
 
   const vehicleCoordinate = useMemo<[number, number] | null>(() => {
     if (vehicleData?.location) {
@@ -106,7 +105,6 @@ export default function LocationScreen() {
     if (!myLocation || !vehicleCoordinate) return 0;
     return getBearing(myLocation, vehicleCoordinate);
   }, [myLocation, vehicleCoordinate]);
-  
 
   const cameraCenter = useMemo(() => {
     if (myLocation) {
@@ -149,7 +147,10 @@ export default function LocationScreen() {
           ) : null}
 
           {vehicleCoordinate ? (
-            <PointAnnotation id="vehicle-location" coordinate={vehicleCoordinate}>
+            <PointAnnotation
+              id="vehicle-location"
+              coordinate={vehicleCoordinate}
+            >
               <View style={styles.vehicleDotOuter}>
                 <View style={styles.vehicleDotInner} />
               </View>
@@ -157,7 +158,10 @@ export default function LocationScreen() {
           ) : null}
 
           {myLocation && vehicleCoordinate ? (
-            <PointAnnotation id="vehicle-direction-pointer" coordinate={myLocation}>
+            <PointAnnotation
+              id="vehicle-direction-pointer"
+              coordinate={myLocation}
+            >
               <View
                 style={[
                   styles.directionArrow,
@@ -186,7 +190,9 @@ export default function LocationScreen() {
             MAP OVERVIEW
           </SizableText>
           <SizableText color="$textLight" fontSize={17} fontWeight="700">
-            {myLocation ? 'Centered on your location' : 'Waiting for location permission'}
+            {myLocation
+              ? 'Centered on your location'
+              : 'Waiting for location permission'}
           </SizableText>
           <SizableText color="$textMuted" fontSize={13}>
             {myLocation ? 'Live location mode' : 'Location unavailable'}
@@ -216,7 +222,10 @@ export default function LocationScreen() {
               ]}
             >
               <SizableText color="$color1" fontSize={10} fontWeight="800">
-                MAX {vehicleData?.speedLimit ? `${vehicleData.speedLimit} km/h` : 'N/A'}
+                MAX{' '}
+                {vehicleData?.speedLimit
+                  ? `${vehicleData.speedLimit} km/h`
+                  : 'N/A'}
               </SizableText>
             </View>
 
