@@ -101,6 +101,8 @@ class PassiveCANListener(can.Listener):
 
         self.passive_speed = None
         self.passive_mileage = None
+        self.passive_rpm = None
+        self.passive_steering_angle = None
 
     def on_message_received(self, msg):
         # Log every passive frame we care about
@@ -136,7 +138,22 @@ class PassiveCANListener(can.Listener):
                 # Speed is big-endian, scale by 0.01 to get KPH
                 self.passive_speed = ((msg.data[5] << 8) | msg.data[6]) * 0.01
 
-        # 5. Check for passive Mileage (Toyota ODO on 0x611, bytes 5-7)
+        # 5. Check for passive Engine RPM (Toyota common 0x2C4, bytes 0-1)
+        if msg.arbitration_id == 0x2C4:
+            if len(msg.data) >= 2:
+                # RPM is big-endian, directly mapped (e.g. 0x0364 = 868 RPM)
+                self.passive_rpm = (msg.data[0] << 8) | msg.data[1]
+
+        # 6. Check for passive Steering Angle (Toyota common 0x260, bytes 5-6)
+        if msg.arbitration_id == 0x260:
+            if len(msg.data) >= 7:
+                # Signed 16-bit integer, standard 1.5 degree scaling
+                val = (msg.data[5] << 8) | msg.data[6]
+                if val > 32767:
+                    val -= 65536
+                self.passive_steering_angle = val * 1.5
+
+        # 7. Check for passive Mileage (Toyota ODO on 0x611, bytes 5-7)
         if msg.arbitration_id == 0x611:
             if len(msg.data) >= 8:
                 # Mileage in km is a 24-bit integer
@@ -464,6 +481,8 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         packet = {
             "timestamp": datetime.now().isoformat(),
             "speed_kmh": round(current_speed, 1) if current_speed is not None else -1,
+            "rpm": listener.passive_rpm if listener.passive_rpm is not None else -1,
+            "steering_angle": round(listener.passive_steering_angle, 1) if listener.passive_steering_angle is not None else 0.0,
             "fuel_percent": fuel_percent if fuel_percent is not None else -1,
             "battery_v": round(last_voltage, 2) if last_voltage is not None else -1,
             "mileage_km": round(last_mileage, 1) if last_mileage is not None else -1,
