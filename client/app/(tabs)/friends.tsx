@@ -112,10 +112,26 @@ export default function FriendsScreen() {
                 fontSize={14}
                 textAlign="center"
                 maxWidth={260}
+                mb="$6"
               >
                 You don't have any friends added. Tap "Add Friend" to get
                 started.
               </SizableText>
+              <TouchableOpacity onPress={() => setIsModalVisible(true)}>
+                <XStack
+                  backgroundColor="$button"
+                  px="$6"
+                  py="$3"
+                  borderRadius={24}
+                  ai="center"
+                  gap="$2"
+                >
+                  <Plus size={18} color={theme.textLight?.val} />
+                  <SizableText color="$textLight" fontSize={15} fontWeight="700">
+                    Add Friend
+                  </SizableText>
+                </XStack>
+              </TouchableOpacity>
             </YStack>
           ) : (
             <YStack px="$4" mt="$4">
