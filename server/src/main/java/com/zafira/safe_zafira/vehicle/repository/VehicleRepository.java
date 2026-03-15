@@ -275,7 +275,7 @@ public class VehicleRepository {
                 WHERE vehicle_no = ? ORDER BY ts DESC LIMIT 1
                 """;
 
-        return jdbcTemplate.query(sql, (rs) -> {
+        return jdbcTemplate.query(sql, (rs, _) -> {
             LocationData loc = parseLocation(rs);
 
             java.sql.Array dangersArr = rs.getArray("dangers");
@@ -293,6 +293,6 @@ public class VehicleRepository {
                     Optional.ofNullable(rs.getObject("abs", Boolean.class)),
                     Optional.ofNullable(rs.getObject("esp", Boolean.class))
             );
-        }, vehicleNo);
+        }, vehicleNo).getFirst();
     }
 }
