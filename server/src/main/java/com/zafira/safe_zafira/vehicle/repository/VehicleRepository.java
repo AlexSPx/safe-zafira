@@ -27,13 +27,13 @@ public class VehicleRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public void addUserVehicle(long userId, long vehicleId) {
+    public void addUserVehicle(long userId, long vehicleNo) {
         String sql = "INSERT INTO user_vehicle (user_id, vehicle_id) VALUES (?, ?)";
 
         jdbcTemplate.update(
                 sql,
                 userId,
-                vehicleId
+                vehicleNo
         );
     }
 
@@ -51,7 +51,7 @@ public class VehicleRepository {
         );
     }
 
-    public boolean vehicleExistsByVehicleId(String vehicleId) {
+    public boolean vehicleExistsByVehicleNo(String vehicleId) {
         String sql = "SELECT EXISTS(SELECT 1 FROM vehicles WHERE vehicle_no = ?)";
 
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
@@ -63,8 +63,8 @@ public class VehicleRepository {
 
     public void enterData(String vehicleId, VehicleData data) {
         String sql = """
-                INSERT INTO vehicle_telemetry (vehicle_no, latitude, longitude, speed, battery, steering, mileage, brake_pedal, dangers, diagnostics, airbags, abs, ts)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicle_telemetry (vehicle_no, latitude, longitude, speed, battery, steering, mileage, brake_pedal, rpm, dangers, diagnostics, airbags, abs, ts)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         jdbcTemplate.update(con -> {
@@ -77,23 +77,24 @@ public class VehicleRepository {
             ps.setObject(6, data.steering().orElse(null));
             ps.setObject(7, data.mileage().orElse(null));
             ps.setObject(8, data.brakePedal().orElse(null));
+            ps.setObject(9, data.rpm().orElse(null));
 
             if (data.dangers() != null) {
                 String[] dangersNames = data.dangers().stream().map(Dangers::name).toArray(String[]::new);
-                ps.setArray(9, con.createArrayOf("varchar", dangersNames));
-            } else {
-                ps.setNull(9, java.sql.Types.ARRAY);
-            }
-
-            if (data.diagnostics() != null) {
-                ps.setArray(10, con.createArrayOf("varchar", data.diagnostics().toArray(new String[0])));
+                ps.setArray(10, con.createArrayOf("varchar", dangersNames));
             } else {
                 ps.setNull(10, java.sql.Types.ARRAY);
             }
 
-            ps.setObject(11, data.airbags().orElse(null));
-            ps.setObject(12, data.abs().orElse(null));
-            ps.setObject(13, OffsetDateTime.now(ZoneId.systemDefault()));
+            if (data.diagnostics() != null) {
+                ps.setArray(11, con.createArrayOf("varchar", data.diagnostics().toArray(new String[0])));
+            } else {
+                ps.setNull(10, java.sql.Types.ARRAY);
+            }
+
+            ps.setObject(12, data.airbags().orElse(null));
+            ps.setObject(13, data.abs().orElse(null));
+            ps.setObject(14, OffsetDateTime.now(ZoneId.systemDefault()));
             return ps;
         });
     }
@@ -131,19 +132,7 @@ public class VehicleRepository {
                 ORDER BY ts DESC LIMIT 1
                 """;
 
-        return jdbcTemplate.query(sql, (rs, _) -> {
-            var lat = rs.getObject("latitude", Double.class);
-            var log = rs.getObject("longitude", Double.class);
-            LocationData loc = null;
-            if (lat != null && log != null) {
-                loc = new LocationData(
-                        lat,
-                        log
-                );
-            }
-
-            return loc;
-        }, vehicleNo).getFirst();
+        return jdbcTemplate.query(sql, (rs, _) -> parseLocation(rs), vehicleNo).getFirst();
     }
 
     private LocationData parseLocation(ResultSet rs) throws java.sql.SQLException {

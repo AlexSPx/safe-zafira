@@ -51,7 +51,7 @@ public class VehicleService
 			throw new IllegalArgumentException("User not found");
 		}
 
-		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId))
+		if (!vehicleRepository.vehicleExistsByVehicleNo(vehicleId))
 		{
 			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
 			throw new InvalidVehicleException("Vehicle not found");
@@ -63,7 +63,7 @@ public class VehicleService
 
     public Optional<LocationData> getLastLocationDataForDevice(String vehicleId) {
 
-		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId))
+		if (!vehicleRepository.vehicleExistsByVehicleNo(vehicleId))
 		{
 			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
 			throw new InvalidVehicleException("Vehicle not found");
@@ -86,7 +86,7 @@ public class VehicleService
 	}
 
 	public Optional<VehicleDataClient> getCurrentClientVehicleData(String vehicleId) {
-		if (!vehicleRepository.vehicleExistsByVehicleId(vehicleId)) {
+		if (!vehicleRepository.vehicleExistsByVehicleNo(vehicleId)) {
 			log.error("Vehicle with no [{}] does not exist in the db", vehicleId);
 			throw new InvalidVehicleException("Vehicle not found");
 		}
