@@ -40,6 +40,8 @@ export function useVehicles() {
       setVehicleError(
         error instanceof Error ? error.message : 'Failed to fetch vehicle data',
       );
+    } finally {
+      setVehicleLoading(false);
     }
   }, []);
 
@@ -53,6 +55,8 @@ export function useVehicles() {
       setVehicleError(
         error instanceof Error ? error.message : 'Failed to fetch statistics',
       );
+    } finally {
+      setVehicleLoading(false);
     }
   }, []);
 

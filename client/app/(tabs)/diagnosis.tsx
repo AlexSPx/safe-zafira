@@ -52,7 +52,12 @@ export default function DiagnosisScreen() {
           }}
         >
           {!selectedVehicle ? (
-            <YStack flex={1} justifyContent="center" alignItems="center" py="$10">
+            <YStack
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              py="$10"
+            >
               <Circle
                 size={100}
                 backgroundColor="$surface"
@@ -62,10 +67,20 @@ export default function DiagnosisScreen() {
               >
                 <SearchX size={48} color={theme.textMuted?.val} />
               </Circle>
-              <SizableText color="$textLight" fontSize={18} fontWeight="600" mb="$2">
+              <SizableText
+                color="$textLight"
+                fontSize={18}
+                fontWeight="600"
+                mb="$2"
+              >
                 No Vehicle Selected
               </SizableText>
-              <SizableText color="$textMuted" fontSize={14} textAlign="center" maxWidth={260}>
+              <SizableText
+                color="$textMuted"
+                fontSize={14}
+                textAlign="center"
+                maxWidth={260}
+              >
                 Pair and select a vehicle to view its diagnostics data.
               </SizableText>
             </YStack>
@@ -81,7 +96,11 @@ export default function DiagnosisScreen() {
                   <AlertTriangle size={24} color={theme.textLight?.val} />
                 </Circle>
                 <YStack>
-                  <SizableText color="$textLight" fontSize={20} fontWeight="700">
+                  <SizableText
+                    color="$textLight"
+                    fontSize={20}
+                    fontWeight="700"
+                  >
                     Error Codes
                   </SizableText>
                   <SizableText color="$textMuted" fontSize={14}>
@@ -95,7 +114,12 @@ export default function DiagnosisScreen() {
               </XStack>
 
               {isLoading ? (
-                <SizableText color="$textMuted" fontSize={14} py="$4" textAlign="center">
+                <SizableText
+                  color="$textMuted"
+                  fontSize={14}
+                  py="$4"
+                  textAlign="center"
+                >
                   Loading diagnostics...
                 </SizableText>
               ) : hasNoCodes ? (
@@ -118,51 +142,48 @@ export default function DiagnosisScreen() {
                     color="$textLight"
                     fontSize={18}
                     fontWeight="600"
-                mb="$2"
-              >
-                All Clear!
-              </SizableText>
-              <SizableText
-                color="$textMuted"
-                fontSize={14}
-                textAlign="center"
-                maxWidth={260}
-              >
-                No diagnostic trouble codes found. Your vehicle is running
-                smoothly.
-              </SizableText>
-            </YStack>
-          ) : (
-            <>
-              <SizableText
-                color="$textMuted"
-                fontSize={12}
-                letterSpacing={1.5}
-                mb="$3"
-                fontWeight="600"
-              >
-                ACTIVE CODES
-              </SizableText>
-              <YStack
-                backgroundColor="$surface"
-                borderColor="$borderColor"
-                borderWidth={1}
-                paddingHorizontal="$4"
-                borderRadius={20}
-              >
-                {codes.map((item, index) => (
-                  <React.Fragment key={`${item}-${index}`}>
-                    <ExpandableItem
-                      code={item}
-                      description={DIAGNOSTIC_CODE_DESCRIPTION}
-                    />
-                    {index < codes.length - 1 && <RowSeparator />}
-                  </React.Fragment>
-                ))}
-              </YStack>
+                    mb="$2"
+                  >
+                    All Clear!
+                  </SizableText>
+                  <SizableText
+                    color="$textMuted"
+                    fontSize={14}
+                    textAlign="center"
+                    maxWidth={260}
+                  >
+                    No diagnostic trouble codes found. Your vehicle is running
+                    smoothly.
+                  </SizableText>
+                </YStack>
+              ) : (
+                <>
+                  <SizableText
+                    color="$textMuted"
+                    fontSize={12}
+                    letterSpacing={1.5}
+                    mb="$3"
+                    fontWeight="600"
+                  >
+                    ACTIVE CODES
+                  </SizableText>
+                  <YStack
+                    backgroundColor="$surface"
+                    borderColor="$borderColor"
+                    borderWidth={1}
+                    paddingHorizontal="$4"
+                    borderRadius={20}
+                  >
+                    {codes.map((item, index) => (
+                      <React.Fragment key={`${item}-${index}`}>
+                        <ExpandableItem code={item} />
+                        {index < codes.length - 1 && <RowSeparator />}
+                      </React.Fragment>
+                    ))}
+                  </YStack>
+                </>
+              )}
             </>
-          )}
-          </>
           )}
         </ScrollView>
       </YStack>
