@@ -5,8 +5,8 @@ Boot sequence:
   1. BLE Pairing (one-time, skipped if already paired)
   2. Load JWT token from device_config.json
   3. Start OBD CAN Reader thread (or mock thread if --mock is passed)
-  4. Start Server Sender thread — shapes packets to VehicleData format
-    and POSTs to /vehicles/data?device=<device_id> with Bearer auth
+    4. Start Server Sender thread — shapes packets to VehicleData format
+        and POSTs to /api/vehicles/data?device=<device_id> with Bearer auth
 
 Usage:
   # Real CAN bus:
@@ -277,10 +277,10 @@ def server_sender_thread(
 ):
     """
     Drains OBD packets from data_queue, analyzes dangers, shapes them into
-    the server's VehicleData format, and POSTs to /vehicles/data every
+    the server's VehicleData format, and POSTs to /api/vehicles/data every
     SEND_INTERVAL seconds.  Uses JWT Bearer auth and device query parameter.
     """
-    logger.info(f"[Sender] Server sender started → {server_url}/vehicles/data?device=<id>")
+    logger.info(f"[Sender] Server sender started → {server_url}/api/vehicles/data?device=<id>")
     if not jwt_token:
         logger.warning("[Sender] No JWT token — requests will be rejected by the server!")
 
@@ -290,13 +290,7 @@ def server_sender_thread(
     retry_buffer: deque = deque(maxlen=500)
     last_send = time.time()
 
-    # Request DTC once OBD reader is ready
-    time.sleep(2)
-    try:
-        command_queue.put_nowait("REQ_DTC")
-        logger.info("[Sender] Requested DTC from OBD reader...")
-    except queue.Full:
-        pass  # mock mode — no reader listening; that's fine
+    last_dtc_req = time.time() - 28  # Trigger soon after start
 
     headers = {
         "authorization": f"Bearer {jwt_token}",
@@ -304,6 +298,15 @@ def server_sender_thread(
     }
 
     while not stop_event.is_set():
+        # Periodically request DTCs every 30 seconds
+        if time.time() - last_dtc_req > 30.0:
+            try:
+                command_queue.put_nowait("REQ_DTC")
+                last_dtc_req = time.time()
+                logger.debug("[Sender] Requested scheduled DTC update...")
+            except queue.Full:
+                pass
+
         # Collect VIN / DTC responses
         try:
             resp = response_queue.get_nowait()
@@ -352,7 +355,7 @@ def server_sender_thread(
 
             try:
                 logger.info(f"[Sender] POSTing {len(payload)} record(s)...")
-                request_url = f"{server_url}/vehicles/data?device={device_id}"
+                request_url = f"{server_url}/api/vehicles/data?device={device_id}"
                 auth_preview = f"Bearer {jwt_token[:12]}..." if jwt_token else "Bearer <missing>"
                 body_json = json.dumps(payload[-1], ensure_ascii=True, separators=(",", ":"))
                 logger.info(
@@ -363,7 +366,7 @@ def server_sender_thread(
                 # Server endpoint accepts a single VehicleData object; send the latest
                 # If the server accepts an array adjust here — currently sends last record
                 resp = requests.post(
-                    f"{server_url}/vehicles/data",
+                    f"{server_url}/api/vehicles/data",
                     json=payload[-1],  # send latest packet
                     params={"device": device_id},
                     headers=headers,
@@ -383,7 +386,7 @@ def server_sender_thread(
     # Final flush on shutdown
     if batch:
         try:
-            request_url = f"{server_url}/vehicles/data?device={device_id}"
+            request_url = f"{server_url}/api/vehicles/data?device={device_id}"
             auth_preview = f"Bearer {jwt_token[:12]}..." if jwt_token else "Bearer <missing>"
             body_json = json.dumps(batch[-1], ensure_ascii=True, separators=(",", ":"))
             logger.info(
@@ -391,7 +394,7 @@ def server_sender_thread(
                 f"Authorization='{auth_preview}' Content-Type='application/json'"
             )
             logger.info(f"[Sender] Request body: {body_json}")
-            requests.post(f"{server_url}/vehicles/data",
+            requests.post(f"{server_url}/api/vehicles/data",
                           json=batch[-1],
                           params={"device": device_id},
                           headers=headers,
