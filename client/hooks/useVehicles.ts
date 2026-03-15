@@ -50,7 +50,6 @@ export function useVehicles() {
     setVehicleLoading(true);
     try {
       const data = await vehicleService.getVehicleData(deviceId);
-      console.log('Fetched vehicle data:', JSON.stringify(data, null, 2));
       setVehicleData(data);
     } catch (error) {
       console.log('error', error);

@@ -29,7 +29,7 @@ export default function StatisticsScreen() {
   const theme = useTheme();
   const { selectedVehicle, vehicleData, isLoading } = useVehicles();
 
-  if (!selectedVehicle) {
+  if (!selectedVehicle || !vehicleData) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
         <YStack flex={1} ai="center" jc="center">
@@ -143,8 +143,14 @@ export default function StatisticsScreen() {
             <DataRow label="VIN" value={selectedVehicle.vin} />
             <RowSeparator />
             <DataRow label="Device ID" value={selectedVehicle.vehicleNo} />
-            <DataRow label="Millage" value={selectedVehicle.vehicleNo} />
-            <DataRow label="Steering" value={selectedVehicle.vehicleNo} />
+            <DataRow
+              label="Millage"
+              value={vehicleData.mileage?.toString() ?? 'N/A'}
+            />
+            <DataRow
+              label="Steering"
+              value={vehicleData.steering?.toString() ?? 'N/A'}
+            />
           </YStack>
 
           <SizableText

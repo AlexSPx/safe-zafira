@@ -67,7 +67,9 @@ class VehicleApiService {
       vehicleId,
       device: vehicleId,
     }).toString();
-    return apiClient.get<VehicleDataClient | null>(`/api/vehicles/data?${query}`);
+    return apiClient.get<VehicleDataClient | null>(
+      `/api/vehicles/data?${query}`,
+    );
   }
 
   getVehicleStatistics(minutes: number = 120): Promise<VehicleStatusSummary[]> {
