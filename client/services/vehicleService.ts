@@ -52,10 +52,8 @@ export type VehicleStatusSummary = {
 
 export type VehicleInitiationRequest = {
   vehicleId: string;
-  vin: string;
   model: string;
   make: string;
-  batteryVoltage: number;
 };
 
 const API_BASE_URL =
