@@ -161,7 +161,10 @@ public class VehicleRepository {
                 ORDER BY vt.ts DESC LIMIT 1
                 """;
 
-        List<LocationData> results = jdbcTemplate.query(sql, (rs, _) -> parseLocation(rs), userId);
+        List<LocationData> results = jdbcTemplate.query(sql, (rs, _) -> new LocationData(
+                rs.getDouble("latitude"),
+                rs.getDouble("longitude")
+        ), userId);
         return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
     }
 
