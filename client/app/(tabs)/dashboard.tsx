@@ -17,7 +17,7 @@ import { QuickStat } from '../../components/QuickStat';
 import { useVehicles } from '../../hooks/useVehicles';
 import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
 
-const EMERGENCY_NUMBER = '0892469684';
+const EMERGENCY_NUMBER = '0882735399';
 
 export default function Dashboard() {
   const theme = useTheme();

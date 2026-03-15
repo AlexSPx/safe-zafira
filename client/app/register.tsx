@@ -83,7 +83,7 @@ export default function RegisterScreen() {
       );
       await saveJwtToSecureStore(token);
 
-      router.replace('/(tabs)/pairing');
+      router.replace('/pairing');
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message);

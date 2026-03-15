@@ -289,9 +289,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1260FF',
   },
   vehicleDotOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 2,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: 'rgba(249, 115, 22, 0.24)',
     alignItems: 'center',
     justifyContent: 'center',

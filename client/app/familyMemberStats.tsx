@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   YStack,
   XStack,
@@ -7,7 +7,7 @@ import {
   Circle,
   useTheme,
 } from 'tamagui';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { QuickStat } from '../components/QuickStat';
@@ -23,10 +23,28 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle,
 } from 'lucide-react-native';
 import { vehicleService } from '../services/vehicleService';
 import type { Vehicle, VehicleDataClient } from '../services/vehicleService';
+
+// Merge incoming data with previous, keeping previous values when incoming is null
+function mergeVehicleData(
+  previous: VehicleDataClient | null,
+  incoming: VehicleDataClient | null,
+): VehicleDataClient | null {
+  if (!incoming) return previous;
+  if (!previous) return incoming;
+
+  const merged = { ...incoming } as VehicleDataClient;
+
+  (Object.keys(incoming) as Array<keyof VehicleDataClient>).forEach((key) => {
+    if (incoming[key] === null) {
+      (merged as Record<string, unknown>)[key] = previous[key];
+    }
+  });
+
+  return merged;
+}
 
 export default function FamilyMemberStatsScreen() {
   const theme = useTheme();
@@ -43,8 +61,12 @@ export default function FamilyMemberStatsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestInFlightRef = useRef(false);
+
   const selectedVehicle = vehicles[selectedVehicleIndex] ?? null;
 
+  // Fetch family member's vehicles
   useEffect(() => {
     const fetchVehicles = async () => {
       if (!memberId) return;
@@ -67,24 +89,47 @@ export default function FamilyMemberStatsScreen() {
     fetchVehicles();
   }, [memberId]);
 
+  // Polling function
+  const pollVehicleData = useCallback(async () => {
+    if (!selectedVehicle?.vehicleNo || requestInFlightRef.current) return;
+
+    requestInFlightRef.current = true;
+    try {
+      const data = await vehicleService.getVehicleData(
+        selectedVehicle.vehicleNo,
+      );
+      setVehicleData((prev) => mergeVehicleData(prev, data));
+    } catch (err) {
+      console.error('Failed to poll vehicle data:', err);
+    } finally {
+      requestInFlightRef.current = false;
+    }
+  }, [selectedVehicle?.vehicleNo]);
+
+  // Start/stop polling when selected vehicle changes
   useEffect(() => {
-    const fetchData = async () => {
-      if (!selectedVehicle?.vehicleNo) {
-        setVehicleData(null);
-        return;
-      }
-      try {
-        const data = await vehicleService.getVehicleData(
-          selectedVehicle.vehicleNo,
-        );
-        setVehicleData(data);
-      } catch (err) {
-        console.error('Failed to fetch vehicle data:', err);
-        setVehicleData(null);
+    // Clear previous data when switching vehicles
+    setVehicleData(null);
+
+    if (!selectedVehicle?.vehicleNo) {
+      return;
+    }
+
+    // Initial fetch
+    void pollVehicleData();
+
+    // Start 1-second polling
+    pollingRef.current = setInterval(() => {
+      void pollVehicleData();
+    }, 1000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     };
-    fetchData();
-  }, [selectedVehicle?.vehicleNo]);
+  }, [selectedVehicle?.vehicleNo, pollVehicleData]);
 
   const nextVehicle = () => {
     if (selectedVehicleIndex < vehicles.length - 1) {
@@ -97,8 +142,6 @@ export default function FamilyMemberStatsScreen() {
       setSelectedVehicleIndex(selectedVehicleIndex - 1);
     }
   };
-
-  const crashDetected = vehicleData?.dangers?.includes('CRASH_DETECTED');
 
   if (isLoading) {
     return (
@@ -196,13 +239,8 @@ export default function FamilyMemberStatsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
+          {/* Member Header */}
           <XStack alignItems="center" gap="$3" mb="$4">
-            <TouchableOpacity onPress={() => router.back()}>
-              <XStack w={40} h={40} jc="center" ai="center">
-                <ChevronLeft size={24} color={theme.textLight?.val} />
-              </XStack>
-            </TouchableOpacity>
-
             <Circle
               size={48}
               backgroundColor="$primarySoft"
@@ -216,11 +254,13 @@ export default function FamilyMemberStatsScreen() {
                 {memberName}
               </SizableText>
               <SizableText color="$textMuted" fontSize={14}>
-                {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''}
+                {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} •
+                Live
               </SizableText>
             </YStack>
           </XStack>
 
+          {/* Vehicle Selector (if multiple vehicles) */}
           {vehicles.length > 1 && (
             <XStack
               jc="space-between"
@@ -287,6 +327,7 @@ export default function FamilyMemberStatsScreen() {
             </XStack>
           )}
 
+          {/* Vehicle Header */}
           <XStack alignItems="center" gap="$4" mb="$6">
             <Circle
               size={64}
@@ -309,6 +350,7 @@ export default function FamilyMemberStatsScreen() {
             </YStack>
           </XStack>
 
+          {/* Overview Stats */}
           <SizableText
             color="$textMuted"
             fontSize={12}
@@ -349,36 +391,7 @@ export default function FamilyMemberStatsScreen() {
             />
           </XStack>
 
-          {crashDetected && (
-            <XStack
-              backgroundColor="#7f1d1d"
-              borderRadius={16}
-              p="$4"
-              ai="center"
-              gap="$3"
-              mb="$3"
-            >
-              <Circle size={40}>
-                <AlertTriangle size={22} color="#fca5a5" />
-              </Circle>
-              <YStack f={1}>
-                <SizableText
-                  color="#fca5a5"
-                  fontSize={16}
-                  fontWeight="700"
-                  mb="$1"
-                >
-                  Your friends has crashed!
-                </SizableText>
-                <SizableText color="#fecaca" fontSize={13}>
-                  A significant impact was detected for him. They may be unable
-                  to respond. Please call emergency services immediately. You
-                  can check their location on the map.
-                </SizableText>
-              </YStack>
-            </XStack>
-          )}
-
+          {/* Vehicle Details */}
           <SizableText
             color="$textMuted"
             fontSize={12}
@@ -406,18 +419,9 @@ export default function FamilyMemberStatsScreen() {
               label="Device ID"
               value={selectedVehicle?.vehicleNo ?? 'N/A'}
             />
-            <RowSeparator />
-            <DataRow
-              label="Mileage"
-              value={vehicleData?.mileage?.toString() ?? 'N/A'}
-            />
-            <RowSeparator />
-            <DataRow
-              label="Steering"
-              value={vehicleData?.steering?.toString() ?? 'N/A'}
-            />
           </YStack>
 
+          {/* Live Diagnostics */}
           <SizableText
             color="$textMuted"
             fontSize={12}
