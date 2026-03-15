@@ -1,9 +1,10 @@
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import type {
   Vehicle,
   VehicleDataClient,
   VehicleStatusSummary,
 } from '../services/vehicleService';
+import { vehicleService } from '../services/vehicleService';
 
 type VehicleState = {
   vehicles: Vehicle[];
@@ -13,82 +14,120 @@ type VehicleState = {
   isLoading: boolean;
   error: string | null;
 };
+let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let pollingRequestInFlight = false;
 
-let state: VehicleState = {
+export const useVehicleStore = create<VehicleState>(() => ({
   vehicles: [],
   selectedVehicle: null,
   vehicleData: null,
   statistics: [],
   isLoading: false,
   error: null,
-};
+}));
 
-const listeners = new Set<() => void>();
+function mergeVehicleDataKeepingPreviousOnNull(
+  previous: VehicleDataClient | null,
+  incoming: VehicleDataClient | null,
+): VehicleDataClient | null {
+  if (!incoming) return previous;
+  if (!previous) return incoming;
 
-function notifyListeners() {
-  listeners.forEach((listener) => listener());
+  const merged = { ...incoming } as VehicleDataClient;
+
+  (Object.keys(incoming) as Array<keyof VehicleDataClient>).forEach((key) => {
+    if (incoming[key] === null) {
+      (merged as Record<string, unknown>)[key] = previous[key];
+    }
+  });
+
+  return merged;
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
+async function pollSelectedVehicleData() {
+  const { selectedVehicle } = useVehicleStore.getState();
+  if (!selectedVehicle?.vehicleNo || pollingRequestInFlight) return;
 
-export function useVehicleStore(): VehicleState {
-  return useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => state,
-  );
+  pollingRequestInFlight = true;
+  try {
+    const data = await vehicleService.getVehicleData(selectedVehicle.vehicleNo);
+    setVehicleData(data);
+  } catch (error) {
+    useVehicleStore.setState({
+      error:
+        error instanceof Error ? error.message : 'Failed to fetch vehicle data',
+    });
+  } finally {
+    pollingRequestInFlight = false;
+  }
 }
 
 export function setVehicles(vehicles: Vehicle[]) {
-  state = { ...state, vehicles, error: null };
-  if (vehicles.length > 0 && !state.selectedVehicle) {
-    state.selectedVehicle = vehicles[0];
-  }
-  notifyListeners();
+  const currentSelectedVehicle = useVehicleStore.getState().selectedVehicle;
+  useVehicleStore.setState({
+    vehicles,
+    selectedVehicle:
+      vehicles.length > 0 && !currentSelectedVehicle
+        ? vehicles[0]
+        : currentSelectedVehicle,
+    error: null,
+  });
 }
 
 export function setSelectedVehicle(vehicle: Vehicle | null) {
-  state = { ...state, selectedVehicle: vehicle };
-  notifyListeners();
+  useVehicleStore.setState({ selectedVehicle: vehicle, vehicleData: null });
+  if (vehicle?.vehicleNo) {
+    void pollSelectedVehicleData();
+  }
 }
 
 export function setVehicleData(vehicleData: VehicleDataClient | null) {
-  state = { ...state, vehicleData, error: null };
-  notifyListeners();
+  const previousVehicleData = useVehicleStore.getState().vehicleData;
+  const mergedVehicleData = mergeVehicleDataKeepingPreviousOnNull(
+    previousVehicleData,
+    vehicleData,
+  );
+  useVehicleStore.setState({ vehicleData: mergedVehicleData, error: null });
 }
 
 export function setVehicleStatistics(statistics: VehicleStatusSummary[]) {
-  state = { ...state, statistics, error: null };
-  notifyListeners();
+  useVehicleStore.setState({ statistics, error: null });
 }
 
 export function setVehicleLoading(isLoading: boolean) {
-  state = { ...state, isLoading };
-  notifyListeners();
+  useVehicleStore.setState({ isLoading });
 }
 
 export function setVehicleError(error: string | null) {
-  state = { ...state, error, isLoading: false };
-  notifyListeners();
+  useVehicleStore.setState({ error, isLoading: false });
+}
+
+export function startVehiclePolling() {
+  if (pollingInterval) return;
+  void pollSelectedVehicleData();
+  pollingInterval = setInterval(() => {
+    void pollSelectedVehicleData();
+  }, 1000);
+}
+
+export function stopVehiclePolling() {
+  if (!pollingInterval) return;
+  clearInterval(pollingInterval);
+  pollingInterval = null;
 }
 
 export function clearVehicleStore() {
-  state = {
+  stopVehiclePolling();
+  useVehicleStore.setState({
     vehicles: [],
     selectedVehicle: null,
     vehicleData: null,
     statistics: [],
     isLoading: false,
     error: null,
-  };
-  notifyListeners();
+  });
 }
 
 export function getVehicleStore(): VehicleState {
-  return state;
+  return useVehicleStore.getState();
 }
