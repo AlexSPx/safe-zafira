@@ -19,7 +19,8 @@ export default function RootLayout() {
     const isAuthenticated = Boolean(user && jwt);
     const isPublicRoute = useMemo(() => {
         const first = segments[0];
-        return first === 'index' || first === 'login' || first === 'register';
+
+        return first === undefined || first === 'login' || first === 'register';
     }, [segments]);
 
     useEffect(() => {
@@ -33,7 +34,7 @@ export default function RootLayout() {
         if (isAuthenticated && isPublicRoute) {
             router.replace('/(tabs)/dashboard');
         }
-    }, [isAuthenticated, isPublicRoute, rootNavigationState?.key, router]);
+    }, [isAuthenticated, isPublicRoute, rootNavigationState?.key, router, jwt, user]);
 
     return (
         <SafeAreaProvider>
