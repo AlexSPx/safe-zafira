@@ -25,7 +25,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class VehicleController {
 
-    private static final String VEHICLE_HEADER_NAME = "device";
+    private static final String VEHICLE_HEADER_NAME = "Device";
 
     private final VehicleService service;
     private final SpeedLimitService speedLimitService;
