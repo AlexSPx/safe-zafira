@@ -45,10 +45,8 @@ export type VehicleStatusSummary = {
   avgBattery: number | null;
   avgBatteryCar: number | null;
   avgFuel: number | null;
+  avgRpm: number | null;
   lastLocation: LocationData | null;
-  allDangers: string[];
-  allDiagnostics: string[];
-  dataPoints: number;
 };
 
 export type VehicleInitiationRequest = {
