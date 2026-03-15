@@ -26,9 +26,17 @@ export default function DiagnosisScreen() {
   const hasNoCodes = codes.length === 0;
 
   useEffect(() => {
-    if (selectedVehicle?.vehicleNo) {
+    if (!selectedVehicle?.vehicleNo) return;
+
+    // Initial fetch
+    fetchVehicleData(selectedVehicle.vehicleNo);
+
+    // Poll every second
+    const interval = setInterval(() => {
       fetchVehicleData(selectedVehicle.vehicleNo);
-    }
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [selectedVehicle?.vehicleNo, fetchVehicleData]);
 
   return (
