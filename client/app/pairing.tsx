@@ -1,16 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   YStack,
   XStack,
   SizableText,
   Square,
   Spinner,
+  Input,
+  Button,
   useTheme,
 } from 'tamagui';
-import { FlatList, TouchableOpacity } from 'react-native';
+import { FlatList, TouchableOpacity, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useBLEContext } from '../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { vehicleService } from '../services/vehicleService';
 import {
   Bluetooth,
   ChevronLeft,
@@ -27,16 +30,41 @@ export default function PairingScreen() {
     allDevices,
     connectToDevice,
     connectedDevice,
+    hardwareId,
     isScanning,
     isConnecting,
   } = useBLEContext();
   const theme = useTheme();
 
+  const [showForm, setShowForm] = useState(false);
+  const [vehicleId, setVehicleId] = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
-    if (connectedDevice) {
-      router.back();
+    if (connectedDevice && !showForm && hardwareId) {
+      setVehicleId(hardwareId);
+      setShowForm(true);
     }
-  }, [connectedDevice]);
+  }, [connectedDevice, showForm, hardwareId]);
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      await vehicleService.registerVehicle({
+        vehicleId,
+        make,
+        model,
+      });
+      setShowForm(false);
+      router.back();
+    } catch (error) {
+      console.error('Failed to register vehicle:', error);
+      // Optional: add a toast or alert here
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleStartScan = async () => {
     const isGranted = await requestPermissions();
@@ -246,6 +274,89 @@ export default function PairingScreen() {
             );
           }}
         />
+
+        <Modal
+          visible={showForm}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowForm(false)}
+        >
+          <YStack
+            flex={1}
+            jc="flex-end"
+            backgroundColor="rgba(0, 0, 0, 0.5)"
+          >
+            <YStack
+              backgroundColor="$background"
+              borderTopLeftRadius={24}
+              borderTopRightRadius={24}
+              p="$4"
+              pb="$8"
+              gap="$4"
+            >
+              <SizableText color="$textLight" fontSize={20} fontWeight="700" textAlign="center">
+                Configure Vehicle
+              </SizableText>
+              
+              <YStack gap="$2">
+                <SizableText color="$textMuted" fontSize={14}>
+                  Device ID
+                </SizableText>
+                <Input
+                  value={hardwareId!}
+                  placeholder="Device ID"
+                  backgroundColor="$surface"
+                  color="$textLight"
+                  borderColor="$borderColor"
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <SizableText color="$textMuted" fontSize={14}>
+                  Make
+                </SizableText>
+                <Input
+                  value={make}
+                  onChangeText={setMake}
+                  placeholder="e.g. Toyota"
+                  backgroundColor="$surface"
+                  color="$textLight"
+                  borderColor="$borderColor"
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <SizableText color="$textMuted" fontSize={14}>
+                  Model
+                </SizableText>
+                <Input
+                  value={model}
+                  onChangeText={setModel}
+                  placeholder="e.g. Camry"
+                  backgroundColor="$surface"
+                  color="$textLight"
+                  borderColor="$borderColor"
+                />
+              </YStack>
+
+              <Button
+                mt="$4"
+                backgroundColor="$button"
+                onPress={handleSubmit}
+                disabled={isSubmitting || !vehicleId || !make || !model}
+                opacity={isSubmitting || !vehicleId || !make || !model ? 0.7 : 1}
+              >
+                {isSubmitting ? (
+                  <Spinner color="$textLight" />
+                ) : (
+                  <SizableText color="$textLight" fontWeight="700">
+                    Register Vehicle
+                  </SizableText>
+                )}
+              </Button>
+            </YStack>
+          </YStack>
+        </Modal>
       </YStack>
     </SafeAreaView>
   );

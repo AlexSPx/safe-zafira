@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { BleManager, Device } from 'react-native-ble-plx';
 import base64 from 'react-native-base64';
+import { useAuthStore } from '../stores/authStore';
 
 const SERVICE_UUID = "00001523-1212-efde-1523-785feabcd123";
 const CHAR_READ_UUID = "00001524-1212-efde-1523-785feabcd123";
@@ -16,6 +17,7 @@ interface BLEContextType {
     disconnectFromDevice: () => void;
     allDevices: Device[];
     connectedDevice: Device | null;
+    hardwareId: string | null;
     isScanning: boolean;
     isConnecting: boolean;
 }
@@ -33,8 +35,11 @@ export const useBLEContext = () => {
 export const BLEProvider = ({ children }: { children: ReactNode }) => {
     const [allDevices, setAllDevices] = useState<Device[]>([]);
     const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+    const [hardwareId, setHardwareId] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
+
+    const { jwt } = useAuthStore();
 
     const requestPermissions = async () => {
         if (Platform.OS === 'android') {
@@ -116,18 +121,19 @@ export const BLEProvider = ({ children }: { children: ReactNode }) => {
                 CHAR_READ_UUID
             );
             if (readCharacteristic.value) {
-                const hardwareId = base64.decode(readCharacteristic.value);
-                console.log(`[Handshake] Successfully Read Hardware ID: ${hardwareId}`);
+                const hwId = base64.decode(readCharacteristic.value);
+                setHardwareId(hwId);
+                console.log(`[Handshake] Successfully Read Hardware ID: ${hwId}`);
             }
 
-            const encodedOK = base64.encode('OK');
+            const encodedOK = base64.encode(jwt!);
             await deviceConnection.writeCharacteristicWithResponseForService(
                 SERVICE_UUID,
                 CHAR_WRITE_UUID,
                 encodedOK
             );
 
-            console.log('[Handshake] Sent "OK" Confirmation to Device.');
+            console.log('[Handshake] Sent JWT Confirmation to Device.');
 
         } catch (e) {
             console.warn('Error connecting or handshaking:', e);
@@ -141,6 +147,7 @@ export const BLEProvider = ({ children }: { children: ReactNode }) => {
         if (connectedDevice) {
             bleManager.cancelDeviceConnection(connectedDevice.id);
             setConnectedDevice(null);
+            setHardwareId(null);
             setIsConnecting(false);
         }
     };
@@ -153,6 +160,7 @@ export const BLEProvider = ({ children }: { children: ReactNode }) => {
             disconnectFromDevice,
             allDevices,
             connectedDevice,
+            hardwareId,
             isScanning,
             isConnecting
         }}>
