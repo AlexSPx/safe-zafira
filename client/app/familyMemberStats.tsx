@@ -23,6 +23,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { vehicleService } from '../services/vehicleService';
 import type { Vehicle, VehicleDataClient } from '../services/vehicleService';
@@ -96,6 +97,8 @@ export default function FamilyMemberStatsScreen() {
       setSelectedVehicleIndex(selectedVehicleIndex - 1);
     }
   };
+
+  const crashDetected = vehicleData?.dangers?.includes('CRASH_DETECTED');
 
   if (isLoading) {
     return (
@@ -345,6 +348,36 @@ export default function FamilyMemberStatsScreen() {
               value={vehicleData?.speed ? `${vehicleData.speed} km/h` : 'N/A'}
             />
           </XStack>
+
+          {crashDetected && (
+            <XStack
+              backgroundColor="#7f1d1d"
+              borderRadius={16}
+              p="$4"
+              ai="center"
+              gap="$3"
+              mb="$3"
+            >
+              <Circle size={40}>
+                <AlertTriangle size={22} color="#fca5a5" />
+              </Circle>
+              <YStack f={1}>
+                <SizableText
+                  color="#fca5a5"
+                  fontSize={16}
+                  fontWeight="700"
+                  mb="$1"
+                >
+                  Your friends has crashed!
+                </SizableText>
+                <SizableText color="#fecaca" fontSize={13}>
+                  A significant impact was detected for him. They may be unable
+                  to respond. Please call emergency services immediately. You
+                  can check their location on the map.
+                </SizableText>
+              </YStack>
+            </XStack>
+          )}
 
           <SizableText
             color="$textMuted"
