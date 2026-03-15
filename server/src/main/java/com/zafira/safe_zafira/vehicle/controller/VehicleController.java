@@ -68,7 +68,7 @@ public class VehicleController {
             return ResponseEntity.status(HttpStatus.OK).body(null);
         }
 
-        var maxSpeed = speedLimitService.getSpeedLimit(location.get().x(), location.get().y());
+        var maxSpeed = speedLimitService.getSpeedLimit(location.get().y(), location.get().x());
 
         return ResponseEntity.status(HttpStatus.OK).body(maxSpeed);
     }

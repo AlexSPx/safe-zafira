@@ -24,7 +24,7 @@ public class SpeedLimitScheduler {
         for (String vehicleNo : vehicleNos) {
             try {
                 var location = vehicleRepository.getLatestLocationByVehicleNo(vehicleNo);
-                Integer speedLimit = speedLimitService.getSpeedLimit(location.x(), location.y());
+                Integer speedLimit = speedLimitService.getSpeedLimit(location.y(), location.x());
 
                 if (speedLimit != null) {
                     vehicleStateCache.put(vehicleNo, speedLimit.longValue());
