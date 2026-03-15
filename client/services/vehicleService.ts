@@ -20,20 +20,20 @@ export type Vehicle = {
   vin: string;
   make: string;
   model: string;
-  batteryVoltage: number;
 };
 
 export type VehicleDataClient = {
   speed: number | null;
   location: LocationData | null;
   diagnostics: string[];
-  battery: number | null;
+  mileage: number | null;
+  rpm: number | null;
+  steering: number | null;
   batteryCar: number | null;
-  fuel: number | null;
   dangers: Dangers[];
   airbags: boolean | null;
   abs: boolean | null;
-  esp: boolean | null;
+  brakePedal: boolean | null;
   speedLimit: number | null;
 };
 

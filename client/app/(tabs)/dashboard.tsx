@@ -6,10 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   Plus,
-  History,
   Gauge,
+  CircleGauge,
+  BatteryCharging,
+  Heart,
 } from 'lucide-react-native';
 import { QuickStat } from '../../components/QuickStat';
 import { useVehicles } from '../../hooks/useVehicles';
@@ -153,16 +154,46 @@ export default function Dashboard() {
                   CURRENT STATUS
                 </SizableText>
 
-                <XStack gap="$3">
+                <XStack gap="$3" mb="$3">
+                  <QuickStat
+                    icon={<Heart size={18} color={theme.textLight?.val} />}
+                    label="Health"
+                    value={
+                      vehicleData?.diagnostics?.length === 0
+                        ? 'Healthy'
+                        : 'Check'
+                    }
+                  />
+                  <QuickStat
+                    icon={
+                      <BatteryCharging size={18} color={theme.textLight?.val} />
+                    }
+                    label="Battery"
+                    value={
+                      vehicleData?.batteryCar
+                        ? `${vehicleData.batteryCar.toFixed(1)}V`
+                        : 'N/A'
+                    }
+                  />
+                </XStack>
+                <XStack gap="$3" mb="$6">
+                  <QuickStat
+                    icon={
+                      <CircleGauge size={18} color={theme.textLight?.val} />
+                    }
+                    label="RPM"
+                    value={
+                      vehicleData?.rpm
+                        ? `${vehicleData.rpm.toFixed(0)}%`
+                        : 'N/A'
+                    }
+                  />
                   <QuickStat
                     icon={<Gauge size={18} color={theme.textLight?.val} />}
                     label="Speed"
-                    value={`${vehicleData?.speed?.toFixed(1) ?? 'N/A'}`}
-                  />
-                  <QuickStat
-                    icon={<History size={18} color={theme.textLight?.val} />}
-                    label="VIN"
-                    value={selectedVehicle.vin?.slice(-6) ?? 'N/A'}
+                    value={
+                      vehicleData?.speed ? `${vehicleData.speed} km/h` : 'N/A'
+                    }
                   />
                 </XStack>
               </YStack>

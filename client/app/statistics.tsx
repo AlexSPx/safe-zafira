@@ -19,6 +19,9 @@ import {
   Thermometer,
   Car,
   CheckCircle2,
+  Gauge,
+  CircleGauge,
+  Disc,
 } from 'lucide-react-native';
 import { useVehicles } from '../hooks/useVehicles';
 
@@ -95,7 +98,9 @@ export default function StatisticsScreen() {
             <QuickStat
               icon={<Heart size={18} color={theme.textLight?.val} />}
               label="Health"
-              value={vehicleData?.diagnostics?.length === 0 ? '100%' : 'Check'}
+              value={
+                vehicleData?.diagnostics?.length === 0 ? 'Healthy' : 'Check'
+              }
             />
             <QuickStat
               icon={<BatteryCharging size={18} color={theme.textLight?.val} />}
@@ -109,14 +114,14 @@ export default function StatisticsScreen() {
           </XStack>
           <XStack gap="$3" mb="$6">
             <QuickStat
-              icon={<Fuel size={18} color={theme.textLight?.val} />}
-              label="Fuel Level"
+              icon={<CircleGauge size={18} color={theme.textLight?.val} />}
+              label="RPM"
               value={
-                vehicleData?.fuel ? `${vehicleData.fuel.toFixed(0)}%` : 'N/A'
+                vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}%` : 'N/A'
               }
             />
             <QuickStat
-              icon={<Thermometer size={18} color={theme.textLight?.val} />}
+              icon={<Gauge size={18} color={theme.textLight?.val} />}
               label="Speed"
               value={vehicleData?.speed ? `${vehicleData.speed} km/h` : 'N/A'}
             />
@@ -146,6 +151,8 @@ export default function StatisticsScreen() {
             <DataRow label="VIN" value={selectedVehicle.vin} />
             <RowSeparator />
             <DataRow label="Device ID" value={selectedVehicle.vehicleNo} />
+            <DataRow label="Millage" value={selectedVehicle.vehicleNo} />
+            <DataRow label="Steering" value={selectedVehicle.vehicleNo} />
           </YStack>
 
           <SizableText
@@ -171,9 +178,9 @@ export default function StatisticsScreen() {
             />
             <RowSeparator />
             <DataRow
-              label="ESP"
-              value={vehicleData?.esp ? 'Active' : 'OK'}
-              highlight={!vehicleData?.esp}
+              label="Brake pedal"
+              value={vehicleData?.brakePedal ? 'Pressed' : 'Not Pressed'}
+              highlight={!vehicleData?.brakePedal}
             />
             <RowSeparator />
             <DataRow
