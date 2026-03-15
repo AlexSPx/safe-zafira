@@ -586,6 +586,8 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
             print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] NEW CAR DATA")
             print("="*40)
             print(f" Speed       : {data['speed_kmh']} km/h")
+            print(f" RPM         : {data['rpm']}")
+            print(f" Steering    : {data['steering_angle']} deg")
             print(f" Fuel        : {data['fuel_percent']} %")
             print(f" Battery     : {data['battery_v']} V")
             print(f" Mileage     : {data['mileage_km']} km")
