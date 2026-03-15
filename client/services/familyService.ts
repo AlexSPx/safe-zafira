@@ -7,6 +7,11 @@ export type GuardedMemberSummary = {
   familyName: string;
 };
 
+export type FamilyMemberLocation = {
+  x: number;
+  y: number;
+};
+
 class FamilyApiService {
   getFamilyDashboard(myId: number): Promise<GuardedMemberSummary[]> {
     return apiClient.get<GuardedMemberSummary[]>(`/api/family/all/${myId}`);
@@ -22,6 +27,14 @@ class FamilyApiService {
       `/api/family/${myId}/add-by-email?${query}`,
     );
     return response;
+  }
+
+  getFamilyMemberVehicleLocation(
+    memberId: number,
+  ): Promise<FamilyMemberLocation | null> {
+    return apiClient.get<FamilyMemberLocation | null>(
+      `/api/vehicles/family/${memberId}/location`,
+    );
   }
 }
 
