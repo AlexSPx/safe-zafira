@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from 'react';
 import { SizableText, XStack, YStack, useTheme } from 'tamagui';
 import {
   Camera,
@@ -9,11 +15,20 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useVehicleStore } from '../../stores/vehicleStore';
+import { useAuthStore } from '../../stores/authStore';
+import { familyService } from '../../services/familyService';
+import type { GuardedMemberSummary } from '../../services/familyService';
 
 const LIGHT_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const DARK_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+type FriendVehicleLocation = {
+  memberId: number;
+  memberName: string;
+  coordinate: [number, number];
+};
 
 const getBearing = (from: [number, number], to: [number, number]): number => {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -40,6 +55,13 @@ export default function LocationScreen() {
   const [isDarkMap, setIsDarkMap] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(13.5);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
+  const [friendLocations, setFriendLocations] = useState<
+    FriendVehicleLocation[]
+  >([]);
+  const [members, setMembers] = useState<GuardedMemberSummary[]>([]);
+
+  const { user } = useAuthStore();
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const mapStyle = useMemo(
     () => (isDarkMap ? DARK_STYLE_URL : LIGHT_STYLE_URL),
@@ -86,6 +108,68 @@ export default function LocationScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!user?.userId) return;
+      try {
+        const familyMembers = await familyService.getFamilyDashboard(
+          user.userId,
+        );
+        setMembers(familyMembers);
+      } catch (error) {
+        console.error('Failed to fetch family members:', error);
+      }
+    };
+    fetchMembers();
+  }, [user?.userId]);
+
+  const fetchFriendLocations = useCallback(async () => {
+    if (members.length === 0) return;
+
+    const locations: FriendVehicleLocation[] = [];
+
+    await Promise.all(
+      members.map(async (member) => {
+        try {
+          const location = await familyService.getFamilyMemberVehicleLocation(
+            member.id,
+          );
+          if (location) {
+            locations.push({
+              memberId: member.id,
+              memberName: member.username,
+              coordinate: [location.x, location.y],
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Failed to fetch location for member ${member.id}:`,
+            error,
+          );
+        }
+      }),
+    );
+
+    setFriendLocations(locations);
+  }, [members]);
+
+  useEffect(() => {
+    if (members.length === 0) return;
+
+    void fetchFriendLocations();
+
+    pollingRef.current = setInterval(() => {
+      void fetchFriendLocations();
+    }, 1000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [members, fetchFriendLocations]);
+
   const { vehicleData } = useVehicleStore();
   const isOverSpeed =
     vehicleData &&
@@ -97,7 +181,6 @@ export default function LocationScreen() {
     if (vehicleData?.location) {
       return [vehicleData.location.x, vehicleData.location.y];
     }
-
     return null;
   }, [vehicleData?.location]);
 
@@ -110,11 +193,9 @@ export default function LocationScreen() {
     if (myLocation) {
       return myLocation;
     }
-
     if (vehicleData && vehicleData.location) {
       return [vehicleData.location.x, vehicleData.location.y];
     } else {
-      // Default to Sofia coordinates if no location data is available
       return [23.3219, 42.6977];
     }
   }, [myLocation, vehicleData?.location]);
@@ -138,6 +219,7 @@ export default function LocationScreen() {
             heading={0}
             animationDuration={450}
           />
+
           {myLocation ? (
             <PointAnnotation id="my-location" coordinate={myLocation}>
               <View style={styles.userDotOuter}>
@@ -148,19 +230,8 @@ export default function LocationScreen() {
 
           {vehicleCoordinate ? (
             <PointAnnotation
-              id="vehicle-location"
-              coordinate={vehicleCoordinate}
-            >
-              <View style={styles.vehicleDotOuter}>
-                <View style={styles.vehicleDotInner} />
-              </View>
-            </PointAnnotation>
-          ) : null}
-
-          {myLocation && vehicleCoordinate ? (
-            <PointAnnotation
               id="vehicle-direction-pointer"
-              coordinate={myLocation}
+              coordinate={vehicleCoordinate}
             >
               <View
                 style={[
@@ -170,6 +241,22 @@ export default function LocationScreen() {
               />
             </PointAnnotation>
           ) : null}
+
+          {friendLocations.map((friend) => (
+            <PointAnnotation
+              key={`friend-${friend.memberId}`}
+              id={`friend-${friend.memberId}`}
+              coordinate={friend.coordinate}
+            >
+              <View style={styles.friendMarkerContainer}>
+                <View style={styles.friendLabelContainer}>
+                  <SizableText style={styles.friendLabel}>
+                    {friend.memberName}
+                  </SizableText>
+                </View>
+              </View>
+            </PointAnnotation>
+          ))}
         </MapView>
 
         <YStack
@@ -195,8 +282,41 @@ export default function LocationScreen() {
               : 'Waiting for location permission'}
           </SizableText>
           <SizableText color="$textMuted" fontSize={13}>
-            {myLocation ? 'Live location mode' : 'Location unavailable'}
+            {friendLocations.length > 0
+              ? `${friendLocations.length} friend${friendLocations.length > 1 ? 's' : ''} visible`
+              : 'Live location mode'}
           </SizableText>
+        </YStack>
+
+        <YStack
+          position="absolute"
+          top="$24"
+          right="$4"
+          backgroundColor="$surface"
+          borderWidth={1}
+          borderColor="$borderColor"
+          borderRadius={12}
+          p="$2"
+          gap="$2"
+        >
+          <XStack ai="center" gap="$2">
+            <View style={styles.legendDotBlue} />
+            <SizableText color="$textMuted" fontSize={11}>
+              You
+            </SizableText>
+          </XStack>
+          <XStack ai="center" gap="$2">
+            <View style={styles.legendTriangleOrange} />
+            <SizableText color="$textMuted" fontSize={11}>
+              Your car
+            </SizableText>
+          </XStack>
+          <XStack ai="center" gap="$2">
+            <View style={styles.legendTriangleGreen} />
+            <SizableText color="$textMuted" fontSize={11}>
+              Friends
+            </SizableText>
+          </XStack>
         </YStack>
 
         <XStack position="absolute" left="$4" bottom="$4">
@@ -289,7 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1260FF',
   },
   vehicleDotOuter: {
-    width: 2,
+    width: 22,
     height: 22,
     borderRadius: 11,
     backgroundColor: 'rgba(249, 115, 22, 0.24)',
@@ -314,6 +434,54 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
     borderBottomColor: '#F97316',
     marginBottom: 28,
+  },
+  friendMarkerContainer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#22C55E',
+  },
+  friendLabelContainer: {
+    backgroundColor: 'rgba(34, 197, 94, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  friendLabel: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  legendDotBlue: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#1260FF',
+  },
+  legendTriangleOrange: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#F97316',
+  },
+  legendTriangleGreen: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#22C55E',
   },
   speedCircle: {
     width: 112,
