@@ -1,34 +1,125 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { SizableText, XStack, YStack, useTheme } from 'tamagui';
 import {
   Camera,
   MapView,
   PointAnnotation,
 } from '@maplibre/maplibre-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import { useVehicleStore } from '../../stores/vehicleStore';
 
 const LIGHT_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const DARK_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-const SOFIA_CENTER: [number, number] = [23.3219, 42.6977];
-const CURRENT_SPEED_KMH = 42;
-const SPEED_LIMIT_KMH = 50;
+const getBearing = (
+  from: [number, number],
+  to: [number, number],
+): number => {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const toDeg = (value: number) => (value * 180) / Math.PI;
+
+  const [fromLon, fromLat] = from;
+  const [toLon, toLat] = to;
+
+  const phi1 = toRad(fromLat);
+  const phi2 = toRad(toLat);
+  const lambda1 = toRad(fromLon);
+  const lambda2 = toRad(toLon);
+
+  const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+  const x =
+    Math.cos(phi1) * Math.sin(phi2) -
+    Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};
+
 
 export default function LocationScreen() {
   const theme = useTheme();
   const [isDarkMap, setIsDarkMap] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(13.5);
-  const [cameraCenter, setCameraCenter] =
-    useState<[number, number]>(SOFIA_CENTER);
-  const isOverSpeed = CURRENT_SPEED_KMH > SPEED_LIMIT_KMH;
+  const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
 
   const mapStyle = useMemo(
     () => (isDarkMap ? DARK_STYLE_URL : LIGHT_STYLE_URL),
     [isDarkMap],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    let locationSubscription: Location.LocationSubscription | null = null;
+
+    const startLocationTracking = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted' || !isMounted) return;
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      if (isMounted) {
+        setMyLocation([
+          currentPosition.coords.longitude,
+          currentPosition.coords.latitude,
+        ]);
+      }
+
+      locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 3000,
+          distanceInterval: 10,
+        },
+        (position) => {
+          if (!isMounted) return;
+          setMyLocation([position.coords.longitude, position.coords.latitude]);
+        },
+      );
+    };
+
+    void startLocationTracking();
+
+    return () => {
+      isMounted = false;
+      locationSubscription?.remove();
+    };
+  }, []);
+
+  const {vehicleData} = useVehicleStore();
+  const isOverSpeed = vehicleData && vehicleData.speed && vehicleData.speedLimit
+                      && vehicleData.speed > vehicleData.speedLimit;
+
+  const vehicleCoordinate = useMemo<[number, number] | null>(() => {
+    if (vehicleData?.location) {
+      return [vehicleData.location.x, vehicleData.location.y];
+    }
+
+    return null;
+  }, [vehicleData?.location]);
+
+  const vehicleBearing = useMemo(() => {
+    if (!myLocation || !vehicleCoordinate) return 0;
+    return getBearing(myLocation, vehicleCoordinate);
+  }, [myLocation, vehicleCoordinate]);
+  
+
+  const cameraCenter = useMemo(() => {
+    if (myLocation) {
+      return myLocation;
+    }
+
+    if (vehicleData && vehicleData.location) {
+      return [vehicleData.location.x, vehicleData.location.y];
+    } else {
+      // Default to Sofia coordinates if no location data is available
+      return [23.3219, 42.6977];
+    }
+  }, [myLocation, vehicleData?.location]);
 
   return (
     <SafeAreaView
@@ -49,11 +140,32 @@ export default function LocationScreen() {
             heading={0}
             animationDuration={450}
           />
-          <PointAnnotation id="sofia-location" coordinate={SOFIA_CENTER}>
-            <View style={styles.userDotOuter}>
-              <View style={styles.userDotInner} />
-            </View>
-          </PointAnnotation>
+          {myLocation ? (
+            <PointAnnotation id="my-location" coordinate={myLocation}>
+              <View style={styles.userDotOuter}>
+                <View style={styles.userDotInner} />
+              </View>
+            </PointAnnotation>
+          ) : null}
+
+          {vehicleCoordinate ? (
+            <PointAnnotation id="vehicle-location" coordinate={vehicleCoordinate}>
+              <View style={styles.vehicleDotOuter}>
+                <View style={styles.vehicleDotInner} />
+              </View>
+            </PointAnnotation>
+          ) : null}
+
+          {myLocation && vehicleCoordinate ? (
+            <PointAnnotation id="vehicle-direction-pointer" coordinate={myLocation}>
+              <View
+                style={[
+                  styles.directionArrow,
+                  { transform: [{ rotate: `${vehicleBearing}deg` }] },
+                ]}
+              />
+            </PointAnnotation>
+          ) : null}
         </MapView>
 
         <YStack
@@ -74,10 +186,10 @@ export default function LocationScreen() {
             MAP OVERVIEW
           </SizableText>
           <SizableText color="$textLight" fontSize={17} fontWeight="700">
-            Vehicle last seen in Sofia
+            {myLocation ? 'Centered on your location' : 'Waiting for location permission'}
           </SizableText>
           <SizableText color="$textMuted" fontSize={13}>
-            Static location mode
+            {myLocation ? 'Live location mode' : 'Location unavailable'}
           </SizableText>
         </YStack>
 
@@ -104,7 +216,7 @@ export default function LocationScreen() {
               ]}
             >
               <SizableText color="$color1" fontSize={10} fontWeight="800">
-                MAX {SPEED_LIMIT_KMH}
+                MAX {vehicleData?.speedLimit ? `${vehicleData.speedLimit} km/h` : 'N/A'}
               </SizableText>
             </View>
 
@@ -114,7 +226,7 @@ export default function LocationScreen() {
               fontSize={34}
               fontWeight="900"
             >
-              {CURRENT_SPEED_KMH}
+              {vehicleData?.speed ? vehicleData.speed : 'N/A'}
             </SizableText>
             <SizableText
               style={styles.speedUnit}
@@ -166,6 +278,33 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#1260FF',
+  },
+  vehicleDotOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(249, 115, 22, 0.24)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 22, 0.6)',
+  },
+  vehicleDotInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#F97316',
+  },
+  directionArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderBottomWidth: 18,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#F97316',
+    marginBottom: 28,
   },
   speedCircle: {
     width: 112,
