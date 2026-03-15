@@ -1,47 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   YStack,
   XStack,
   SizableText,
   ScrollView,
   Circle,
-  Input,
-  Button,
   useTheme,
 } from 'tamagui';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TouchableOpacity, Modal } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { FriendRow } from '../../components/FriendRow';
 import { RowSeparator } from '../../components/RowSeparator';
-import { Plus, UserRoundX, X } from 'lucide-react-native';
+import { Plus, UserRoundX } from 'lucide-react-native';
 import { AddFriendModal } from '../../components/AddFriendModal';
+import { useFamily } from '../../hooks/useFamily';
+import { useAuthStore } from '../../stores/authStore';
+import { setFamilyError } from '../../stores/familyStore';
 
-const initialFriends = [
-  { id: '1', name: 'John Doe' },
-  { id: '2', name: 'Jane Smith' },
-  { id: '3', name: 'Alex Johnson' },
-];
-
-export default function FriendsScreen() {
+export default function FamilyScreen() {
   const theme = useTheme();
-  const [friends, setFriends] = useState(initialFriends);
+  const { user } = useAuthStore();
+  const {
+    members,
+    isLoading,
+    error,
+    fetchFamilyDashboard,
+    addGuardianByEmail,
+  } = useFamily();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newFriendUsername, setNewFriendUsername] = useState('');
 
-  const hasNoFriends = friends.length === 0;
+  const hasNoFriends = members.length === 0;
 
-  const handleAddFriend = () => {
-    if (newFriendUsername.trim() === '') return;
+  useEffect(() => {
+    if (user?.userId != null) {
+      fetchFamilyDashboard(user.userId);
+    }
+  }, [user?.userId, fetchFamilyDashboard]);
 
-    const newFriend = {
-      id: Date.now().toString(),
-      name: newFriendUsername.trim(),
-    };
+  const handleOpenModal = () => {
+    setFamilyError(null);
+    setIsModalVisible(true);
+  };
 
-    setFriends([...friends, newFriend]);
-    setNewFriendUsername('');
-    setIsModalVisible(false);
+  const handleAddFriend = async (email: string) => {
+    if (!user?.userId || !email.trim()) return;
+    try {
+      await addGuardianByEmail(user.userId, email.trim());
+      setIsModalVisible(false);
+    } catch {
+      // error is already set in store
+    }
   };
 
   return (
@@ -65,7 +74,7 @@ export default function FriendsScreen() {
             >
               Friends
             </SizableText>
-            <TouchableOpacity onPress={() => setIsModalVisible(true)}>
+            <TouchableOpacity onPress={handleOpenModal}>
               <XStack
                 backgroundColor="$buttonSecondary"
                 px="$4"
@@ -82,7 +91,21 @@ export default function FriendsScreen() {
             </TouchableOpacity>
           </XStack>
 
-          {hasNoFriends ? (
+          {error ? (
+            <XStack px="$4" py="$2" backgroundColor="$red3">
+              <SizableText color="$red11" fontSize={14}>
+                {error}
+              </SizableText>
+            </XStack>
+          ) : null}
+
+          {isLoading && members.length === 0 ? (
+            <YStack flex={1} py="$10" px="$4" ai="center">
+              <SizableText color="$textMuted" fontSize={14}>
+                Loading...
+              </SizableText>
+            </YStack>
+          ) : hasNoFriends ? (
             <YStack
               flex={1}
               justifyContent="center"
@@ -135,10 +158,10 @@ export default function FriendsScreen() {
                 paddingHorizontal="$4"
                 borderRadius={20}
               >
-                {friends.map((friend, index) => (
-                  <React.Fragment key={friend.id}>
-                    <FriendRow name={friend.name} />
-                    {index < friends.length - 1 && <RowSeparator />}
+                {members.map((member, index) => (
+                  <React.Fragment key={member.id}>
+                    <FriendRow name={member.username} />
+                    {index < members.length - 1 && <RowSeparator />}
                   </React.Fragment>
                 ))}
               </YStack>
