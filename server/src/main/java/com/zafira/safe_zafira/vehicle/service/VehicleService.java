@@ -93,6 +93,12 @@ public class VehicleService
 
 		log.debug("Getting the vehicle data for vehicle [{}]", vehicleId);
 		var vehicleData = vehicleRepository.getLatestTelemetryByVehicleNo(vehicleId);
+
+		var location = vehicleData.location();
+		if (location.isEmpty()) {
+			location = Optional.of(vehicleRepository.getLatestLocationByVehicleNo(vehicleId));
+		}
+
 		var vehicleDataClient = new VehicleDataClient(
 				vehicleData.speed(),
 				vehicleData.rpm(),
@@ -102,7 +108,7 @@ public class VehicleService
 				vehicleData.brakePedal(),
 				vehicleData.airbags(),
 				vehicleData.abs(),
-				vehicleData.location(),
+				location,
 				vehicleData.diagnostics(),
 				vehicleData.dangers(),
 				vehicleStateCache.get(vehicleId)
