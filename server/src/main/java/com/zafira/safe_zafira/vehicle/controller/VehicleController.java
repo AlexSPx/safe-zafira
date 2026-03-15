@@ -1,5 +1,6 @@
 package com.zafira.safe_zafira.vehicle.controller;
 
+import com.zafira.safe_zafira.model.LocationData;
 import com.zafira.safe_zafira.model.VehicleData;
 import com.zafira.safe_zafira.model.VehicleDataClient;
 import com.zafira.safe_zafira.telemetry.speed.SpeedLimitService;
@@ -109,6 +110,21 @@ public class VehicleController {
 
 		List<VehicleStatusSummary> status = service.getAggregatedVehicleStatus(userId, minutes);
 		return ResponseEntity.ok(status);
+	}
+
+	@GetMapping("/api/vehicles/family/{memberId}/location")
+	public ResponseEntity<LocationData> getLastLocationForMember(
+			@AuthenticationPrincipal Long userId,
+			@PathVariable Long memberId)
+	{
+		if (userId == null)
+		{
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
+		return service.getLastLocationForMember(memberId)
+				.map(ResponseEntity::ok)
+				.orElse(ResponseEntity.noContent().build());
 	}
 
 	@ExceptionHandler(InvalidVehicleException.class)

@@ -149,6 +149,22 @@ public class VehicleRepository {
         return loc;
     }
 
+    public Optional<LocationData> getLastLocationByUserId(Long userId) {
+        String sql = """
+                SELECT CAST(vt.latitude AS DOUBLE PRECISION) AS latitude,
+                       CAST(vt.longitude AS DOUBLE PRECISION) AS longitude
+                FROM vehicle_telemetry vt
+                JOIN vehicles v ON vt.vehicle_no = v.vehicle_no
+                JOIN user_vehicle uv ON v.id = uv.vehicle_id
+                WHERE uv.user_id = ?
+                  AND vt.latitude IS NOT NULL AND vt.longitude IS NOT NULL
+                ORDER BY vt.ts DESC LIMIT 1
+                """;
+
+        List<LocationData> results = jdbcTemplate.query(sql, (rs, _) -> parseLocation(rs), userId);
+        return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
+    }
+
     public List<Vehicle> getAllVehiclesByUserId(Long userId) {
         String sql = """
                 SELECT v.id, v.vehicle_no, v.vin, v.make, v.model, v.batteryVoltage

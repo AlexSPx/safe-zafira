@@ -121,4 +121,9 @@ public class VehicleService
 		log.debug("Getting all vehicles for user [{}]", userId);
 		return vehicleRepository.getAllVehiclesByUserId(userId);
     }
+
+	public Optional<LocationData> getLastLocationForMember(Long memberId) {
+		log.debug("Getting last location for member [{}]", memberId);
+		return vehicleRepository.getLastLocationByUserId(memberId);
+	}
 }
