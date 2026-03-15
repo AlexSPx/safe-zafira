@@ -109,10 +109,11 @@ class PassiveCANListener(can.Listener):
 
         # 1. Check for passive Brake Pedal Data
         if msg.arbitration_id == self.brake_id:
-            idx = self.brake_cfg.get("byte_index", 2)
+            idx = self.brake_cfg.get("byte_index", 0)
             if len(msg.data) > idx:
-                # Assuming 0-255 maps to 0-100%
-                self.brake_level = min(100.0, (msg.data[idx] * 100) / 255.0)
+                # The byte is a bitmask (e.g. 0x10 or 0x20) when pressed, 0 when released
+                is_pressed = msg.data[idx] > 0
+                self.brake_level = 100.0 if is_pressed else 0.0
                 parsed_logger.debug(f"BRAKE byte[{idx}]=0x{msg.data[idx]:02X} -> {self.brake_level:.1f}%")
                 
         # 2. Check for passive ABS Activation
@@ -230,65 +231,6 @@ def parse_dtc_response(bus):
     return list(set(dtcs)) if dtcs else ["No Errors Found"]
 
 
-def parse_vin_response(bus):
-    """
-    Parses a multi-frame OBD-II response for the VIN.
-    VINs are 17 characters long, so they require ISO-TP multi-frame (First Frame, Consecutive Frames).
-    Flow Control frames MUST be sent to the ECU's physical ID (0x7E0), not the broadcast ID (0x7DF).
-    """
-    send_obd_request(bus, MODE_VEHICLE_INFO, PID_VIN)
-    
-    vin_bytes = bytearray()
-    expected_length = 0
-    
-    timeout = time.time() + 3.0
-    while time.time() < timeout:
-        msg = bus.recv(0.5)
-        if not msg or msg.arbitration_id < 0x7E8 or msg.arbitration_id > 0x7EF:
-            continue
-            
-        data = msg.data
-        if not data: continue
-        
-        raw_logger.debug(f"VIN RX  ID=0x{msg.arbitration_id:03X} DATA={data.hex(' ')}")
-        pci = data[0] >> 4
-        
-        if pci == 0:  # Single Frame (Unusual for VIN, but possible if short)
-            if len(data) >= 5 and data[1] == 0x49 and data[2] == PID_VIN:
-                length = data[0] & 0x0F
-                # data[3] is the number of data items, data[4:] is the VIN payload
-                vin_bytes.extend(data[4:length + 1])
-                break
-                
-        elif pci == 1: # First Frame
-            expected_length = ((data[0] & 0x0F) << 8) | data[1]
-            if data[2] == 0x49 and data[3] == PID_VIN:
-                # data[4] = number of data items (usually 01), data[5:] = start of VIN
-                vin_bytes.extend(data[5:])
-                # Send Flow Control to ECU physical address, NOT broadcast!
-                fc_msg = can.Message(arbitration_id=OBD_PHYSICAL_ID, data=[0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
-                raw_logger.debug(f"VIN FC TX  ID=0x{OBD_PHYSICAL_ID:03X} DATA={bytes(fc_msg.data).hex(' ')}")
-                bus.send(fc_msg)
-                
-        elif pci == 2: # Consecutive Frame
-            vin_bytes.extend(data[1:])
-            if len(vin_bytes) >= 17:
-                break
-    
-    raw_logger.debug(f"VIN raw bytes ({len(vin_bytes)}): {vin_bytes.hex(' ')}")
-    
-    if len(vin_bytes) >= 17:
-        # VIN usually contains padded nulls or count bytes, we extract ASCII 
-        vin = ''.join(chr(b) for b in vin_bytes if 32 <= b <= 126)
-        # Ensure it's exactly 17 characters
-        result = vin[-17:] if len(vin) >= 17 else vin
-        parsed_logger.info(f"VIN decoded: {result}")
-        return result
-    
-    parsed_logger.warning(f"VIN failed: only got {len(vin_bytes)} bytes")
-    return "Unknown/Unsupported"
-
-
 def trigger_beep(bus, config):
     """Sends a specific CAN message defined in config to trigger the horn or chime.
     Repeats the message several times to ensure the car registers the command.
@@ -321,7 +263,7 @@ def trigger_beep(bus, config):
         )
         
         # Car ECUs usually expect a continuous stream for a short duration to trigger chimes/horns
-        for _ in range(5):
+        for _ in range(3):
             bus.send(beep_msg)
             time.sleep(0.1)
             
@@ -448,7 +390,8 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
     loop_counter = 0
 
     # Cached values persisted across loop iterations (updated on alternating loops)
-    last_voltage      = None
+    last_voltage      = 13.5
+    last_voltage_time = 0
     last_mileage      = None
     last_fuel_liters  = None
     
@@ -457,20 +400,11 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
     while not stop_event.is_set():
         loop_start_time = time.time()
         
-        # 0. Check for commands from the Consumer Thread (like BEEP, REQ_VIN, REQ_DTC)
+        # 0. Check for commands from the Consumer Thread (like BEEP, REQ_DTC)
         try:
             command = command_queue.get_nowait()
             if command == "BEEP":
                 trigger_beep(bus, config)
-            elif command == "REQ_VIN":
-                print("\n[Reader] Consumer requested VIN. Querying car...")
-                vin = parse_vin_response(bus)
-                
-                # Send it back to the consumer via the response queue
-                try:
-                    response_queue.put_nowait({"type": "VIN_RESPONSE", "data": vin})
-                except queue.Full:
-                    pass
             elif command == "REQ_DTC":
                 print("\n[Reader] Consumer requested Engine Codes (DTCs). Querying car...")
                 dtcs = parse_dtc_response(bus)
@@ -490,12 +424,15 @@ def can_reader_thread(interface, data_queue, command_queue, response_queue, stop
         current_speed = listener.passive_speed
         last_mileage  = listener.passive_mileage
         
-        # Every loop: read voltage via standard OBD
-        voltage = request_and_read(
-            bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage, timeout_s=0.3
-        )
-        if voltage is not None:
-            last_voltage = voltage
+        # Only poll voltage every 10 seconds.
+        # Continuous OBD requests on 2007 Yaris can cause ECU lag/low RPM.
+        if time.time() - last_voltage_time > 10.0:
+            voltage = request_and_read(
+                bus, MODE_CURRENT_DATA, PID_CONTROL_MODULE_VOLTAGE, parse_voltage, timeout_s=0.3
+            )
+            if voltage is not None:
+                last_voltage = voltage
+            last_voltage_time = time.time()
 
         # Brake level from passive CAN listener (no polling needed)
         brake_level = listener.brake_level
@@ -601,30 +538,8 @@ def data_consumer_thread(data_queue, command_queue, response_queue, stop_event):
     kb_thread = threading.Thread(target=keyboard_listener, args=(command_queue, stop_event), daemon=True)
     kb_thread.start()
 
-    # Example: Fire off a request to the Reader Thread to get the VIN initially
-    # Give the reader thread a slight moment to start up first
     time.sleep(1)
-    print("\n[Consumer] Requesting VIN from the car...")
-    command_queue.put("REQ_VIN")
-    
-    # Wait for the VIN response 
-    try:
-        response = response_queue.get(timeout=5.0)
-        if response["type"] == "VIN_RESPONSE":
-            vin = response["data"]
-            print(f"\n======================================")
-            print(f"[Consumer] RECEIVED VIN: {vin}")
-            print(f"======================================\n")
-        else:
-            # Put non-VIN responses back so the main loop can handle them
-            try:
-                response_queue.put_nowait(response)
-            except queue.Full:
-                pass
-        response_queue.task_done()
-    except queue.Empty:
-        print("\n[Consumer] [!] Timed out waiting for VIN response!")
-    
+    print("\n[Consumer] Startup complete. Waiting for commands/data...")
     
     # Start the continuous data consumption loop
     while not stop_event.is_set():

@@ -6,7 +6,7 @@
     },
     "can_messages": {
         "beep_trigger": {
-            "description": "Active CAN command to trigger the internal dash chime/audio (Placeholder)",
+            "description": "Active CAN command to flash dashboard lights (Door/Parking)",
             "id": "0x620",
             "data": [
                 "0x10",

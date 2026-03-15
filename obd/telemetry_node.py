@@ -280,12 +280,11 @@ def server_sender_thread(
     retry_buffer: deque = deque(maxlen=500)
     last_send = time.time()
 
-    # Request VIN + DTC once OBD reader is ready
+    # Request DTC once OBD reader is ready
     time.sleep(2)
     try:
-        command_queue.put_nowait("REQ_VIN")
         command_queue.put_nowait("REQ_DTC")
-        logger.info("[Sender] Requested VIN and DTC from OBD reader...")
+        logger.info("[Sender] Requested DTC from OBD reader...")
     except queue.Full:
         pass  # mock mode — no reader listening; that's fine
 
