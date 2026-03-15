@@ -135,19 +135,20 @@ public class VehicleRepository {
         return jdbcTemplate.query(sql, (rs, _) -> parseLocation(rs), vehicleNo).getFirst();
     }
 
-    private LocationData parseLocation(ResultSet rs) throws java.sql.SQLException {
-        var lat = rs.getObject("latitude", Double.class);
-        var log = rs.getObject("longitude", Double.class);
-        LocationData loc = null;
-        if (lat != null && log != null) {
-            loc = new LocationData(
-                    log,
-                    lat
-            );
-        }
-
-        return loc;
-    }
+	private LocationData parseLocation(ResultSet rs) throws java.sql.SQLException
+	{
+		var lat = rs.getObject("latitude", Double.class);
+		var log = rs.getObject("longitude", Double.class);
+		LocationData loc = null;
+		if (lat != null && log != null)
+		{
+			loc = new LocationData(
+					lat, // inverting
+					log
+			);
+		}
+		return loc;
+	}
 
     public Optional<LocationData> getLastLocationByUserId(Long userId) {
         String sql = """
