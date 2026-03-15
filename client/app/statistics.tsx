@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   YStack,
   XStack,
@@ -27,14 +27,7 @@ import { useVehicles } from '../hooks/useVehicles';
 
 export default function StatisticsScreen() {
   const theme = useTheme();
-  const { selectedVehicle, vehicleData, fetchVehicleData, isLoading } =
-    useVehicles();
-
-  useEffect(() => {
-    if (selectedVehicle?.vehicleNo) {
-      fetchVehicleData(selectedVehicle.vehicleNo);
-    }
-  }, [selectedVehicle, fetchVehicleData]);
+  const { selectedVehicle, vehicleData, isLoading } = useVehicles();
 
   if (!selectedVehicle) {
     return (
@@ -105,8 +98,8 @@ export default function StatisticsScreen() {
               icon={<BatteryCharging size={18} color={theme.textLight?.val} />}
               label="Battery"
               value={
-                vehicleData?.batteryCar
-                  ? `${vehicleData.batteryCar.toFixed(1)}V`
+                vehicleData?.battery
+                  ? `${vehicleData.battery.toFixed(1)}V`
                   : 'N/A'
               }
             />

@@ -25,12 +25,12 @@ export type Vehicle = {
 
 export type VehicleDataClient = {
   speed: number | null;
+  battery: number | null;
   location: LocationData | null;
   diagnostics: string[];
   mileage: number | null;
   rpm: number | null;
   steering: number | null;
-  batteryCar: number | null;
   dangers: Dangers[];
   airbags: boolean | null;
   abs: boolean | null;

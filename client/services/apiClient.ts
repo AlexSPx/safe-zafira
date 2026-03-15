@@ -51,10 +51,8 @@ export class ApiClient {
       ...(init.headers ?? {}),
     };
 
-    console.log("Headers, ", headers);
-    console.log("Method, ", method);
-    
-    
+    // console.log("Request: ", method, headers);
+
     const response = await fetch(url, {
       ...init,
       headers,

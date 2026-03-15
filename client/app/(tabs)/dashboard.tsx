@@ -21,10 +21,7 @@ export default function Dashboard() {
     vehicles,
     selectedVehicle,
     vehicleData,
-    isLoading,
-    error,
     fetchVehicles,
-    fetchVehicleData,
     selectVehicle,
   } = useVehicles();
   const [vehicleIndex, setVehicleIndex] = useState(0);
@@ -38,15 +35,6 @@ export default function Dashboard() {
       selectVehicle(vehicles[vehicleIndex]);
     }
   }, [vehicleIndex, vehicles, selectVehicle]);
-
-  useEffect(() => {
-    if (selectedVehicle?.vehicleNo) {
-      console.log('HERE');
-      fetchVehicleData(selectedVehicle.vehicleNo).then(() => {
-        console.log('Vehicle Data:', JSON.stringify(vehicleData, null, 2));
-      });
-    }
-  }, [selectedVehicle, fetchVehicleData]);
 
   const handlePair = () => {
     router.push('/pairing');
@@ -62,10 +50,6 @@ export default function Dashboard() {
     if (vehicles.length > 0) {
       setVehicleIndex((prev) => (prev - 1 + vehicles.length) % vehicles.length);
     }
-  };
-
-  const triggerEmergencyCall = () => {
-    Linking.openURL('tel:0892469684');
   };
 
   return (
@@ -170,8 +154,8 @@ export default function Dashboard() {
                     }
                     label="Battery"
                     value={
-                      vehicleData?.batteryCar
-                        ? `${vehicleData.batteryCar.toFixed(1)}V`
+                      vehicleData?.battery
+                        ? `${vehicleData.battery.toFixed(1)}V`
                         : 'N/A'
                     }
                   />

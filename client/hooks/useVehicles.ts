@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { vehicleService } from '../services/vehicleService';
 import {
   useVehicleStore,
@@ -8,11 +8,28 @@ import {
   setVehicleLoading,
   setVehicleError,
   setSelectedVehicle,
+  startVehiclePolling,
+  stopVehiclePolling,
 } from '../stores/vehicleStore';
 import type { Vehicle } from '../services/vehicleService';
 
+let vehiclePollingSubscribers = 0;
+
 export function useVehicles() {
   const store = useVehicleStore();
+
+  useEffect(() => {
+    vehiclePollingSubscribers += 1;
+    startVehiclePolling();
+
+    return () => {
+      vehiclePollingSubscribers -= 1;
+      if (vehiclePollingSubscribers <= 0) {
+        stopVehiclePolling();
+        vehiclePollingSubscribers = 0;
+      }
+    };
+  }, []);
 
   const fetchVehicles = useCallback(async () => {
     setVehicleLoading(true);

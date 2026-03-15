@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   YStack,
   XStack,
@@ -14,30 +14,12 @@ import { RowSeparator } from '../../components/RowSeparator';
 import { AlertTriangle, SearchX } from 'lucide-react-native';
 import { useVehicles } from '../../hooks/useVehicles';
 
-const DIAGNOSTIC_CODE_DESCRIPTION =
-  'This diagnostic code was reported by the vehicle. Refer to your vehicle manual or a qualified technician for code-specific details.';
-
 export default function DiagnosisScreen() {
   const theme = useTheme();
-  const { selectedVehicle, vehicleData, fetchVehicleData, isLoading } =
-    useVehicles();
+  const { selectedVehicle, vehicleData, isLoading } = useVehicles();
 
   const codes = vehicleData?.diagnostics ?? [];
   const hasNoCodes = codes.length === 0;
-
-  useEffect(() => {
-    if (!selectedVehicle?.vehicleNo) return;
-
-    // Initial fetch
-    fetchVehicleData(selectedVehicle.vehicleNo);
-
-    // Poll every second
-    const interval = setInterval(() => {
-      fetchVehicleData(selectedVehicle.vehicleNo);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [selectedVehicle?.vehicleNo, fetchVehicleData]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
