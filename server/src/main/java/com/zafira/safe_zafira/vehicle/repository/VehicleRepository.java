@@ -63,7 +63,7 @@ public class VehicleRepository {
 
     public void enterData(String vehicleId, VehicleData data) {
         String sql = """
-                INSERT INTO vehicle_telemetry (vehicle_no, latitude, longitude, speed, battery, battery_car, fuel, dangers, diagnostics, airbags, abs, esp, ts)
+                INSERT INTO vehicle_telemetry (vehicle_no, latitude, longitude, speed, battery, steering, mileage, brake_pedal, dangers, diagnostics, airbags, abs, ts)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
@@ -74,25 +74,25 @@ public class VehicleRepository {
             ps.setObject(3, data.location().map(LocationData::y).orElse(null));
             ps.setObject(4, data.speed().orElse(null));
             ps.setObject(5, data.battery().orElse(null));
-            ps.setObject(6, data.batteryCar().orElse(null));
-            ps.setObject(7, data.fuel().orElse(null));
+            ps.setObject(6, data.steering().orElse(null));
+            ps.setObject(7, data.mileage().orElse(null));
+            ps.setObject(8, data.brakePedal().orElse(null));
 
             if (data.dangers() != null) {
                 String[] dangersNames = data.dangers().stream().map(Dangers::name).toArray(String[]::new);
-                ps.setArray(8, con.createArrayOf("varchar", dangersNames));
-            } else {
-                ps.setNull(8, java.sql.Types.ARRAY);
-            }
-
-            if (data.diagnostics() != null) {
-                ps.setArray(9, con.createArrayOf("varchar", data.diagnostics().toArray(new String[0])));
+                ps.setArray(9, con.createArrayOf("varchar", dangersNames));
             } else {
                 ps.setNull(9, java.sql.Types.ARRAY);
             }
 
-            ps.setObject(10, data.airbags().orElse(null));
-            ps.setObject(11, data.abs().orElse(null));
-            ps.setObject(12, data.esp().orElse(null));
+            if (data.diagnostics() != null) {
+                ps.setArray(10, con.createArrayOf("varchar", data.diagnostics().toArray(new String[0])));
+            } else {
+                ps.setNull(10, java.sql.Types.ARRAY);
+            }
+
+            ps.setObject(11, data.airbags().orElse(null));
+            ps.setObject(12, data.abs().orElse(null));
             ps.setObject(13, OffsetDateTime.now(ZoneId.systemDefault()));
             return ps;
         });
@@ -184,8 +184,7 @@ public class VehicleRepository {
                        AVG(CAST(vt.speed AS DOUBLE PRECISION)) AS avg_speed,
                        MAX(CAST(vt.speed AS DOUBLE PRECISION)) AS max_speed,
                        AVG(CAST(vt.battery AS DOUBLE PRECISION)) AS avg_battery,
-                       AVG(CAST(vt.battery_car AS DOUBLE PRECISION)) AS avg_battery_car,
-                       AVG(CAST(vt.fuel AS DOUBLE PRECISION)) AS avg_fuel,
+                       AVG(CAST(vt.rpm AS DOUBLE PRECISION)) AS avg_rpm,
                        (array_agg(CAST(vt.latitude AS DOUBLE PRECISION) ORDER BY vt.ts DESC))[1] AS last_lat,
                        (array_agg(CAST(vt.longitude AS DOUBLE PRECISION) ORDER BY vt.ts DESC))[1] AS last_lon,
                        array_agg(DISTINCT unnested_danger) FILTER (WHERE unnested_danger IS NOT NULL) AS all_dangers,
@@ -215,8 +214,7 @@ public class VehicleRepository {
                     rs.getObject("avg_speed") != null ? rs.getDouble("avg_speed") : null,
                     rs.getObject("max_speed") != null ? rs.getDouble("max_speed") : null,
                     rs.getObject("avg_battery") != null ? rs.getDouble("avg_battery") : null,
-                    rs.getObject("avg_battery_car") != null ? rs.getDouble("avg_battery_car") : null,
-                    rs.getObject("avg_fuel") != null ? rs.getDouble("avg_fuel") : null,
+                    rs.getObject("avg_rpm") != null ? rs.getDouble("avg_rpm") : null,
                     lastLoc,
                     dangersArr != null ? List.of((String[]) dangersArr.getArray()) : List.of(),
                     diagArr != null ? List.of((String[]) diagArr.getArray()) : List.of(),
@@ -225,52 +223,16 @@ public class VehicleRepository {
         }, userId, minutes);
     }
 
-    public VehicleData getLatestTelemetryByUserId(Long userId) {
-        String sql = """
-                SELECT CAST(vt.speed AS BIGINT) AS speed,
-                       CAST(vt.latitude AS DOUBLE PRECISION) AS latitude,
-                       CAST(vt.longitude AS DOUBLE PRECISION) AS longitude,
-                       CAST(vt.battery AS DOUBLE PRECISION) AS battery,
-                       CAST(vt.battery_car AS DOUBLE PRECISION) AS battery_car,
-                       CAST(vt.fuel AS DOUBLE PRECISION) AS fuel,
-                       vt.dangers, vt.diagnostics, vt.airbags, vt.abs, vt.esp
-                FROM vehicle_telemetry vt
-                JOIN vehicles v ON vt.vehicle_no = v.vehicle_no
-                JOIN user_vehicle uv ON v.id = uv.vehicle_id
-                WHERE uv.user_id = ? ORDER BY ts DESC LIMIT 1
-                """;
-
-        return jdbcTemplate.query(sql, (rs) -> {
-
-            LocationData loc = parseLocation(rs);
-
-            java.sql.Array dangersArr = rs.getArray("dangers");
-            java.sql.Array diagnosticsArr = rs.getArray("diagnostics");
-
-            return new VehicleData(
-                    Optional.ofNullable(rs.getObject("speed", Long.class)),
-                    loc == null ? Optional.empty() : Optional.of(loc),
-                    diagnosticsArr != null ? List.of((String[]) diagnosticsArr.getArray()) : List.of(),
-                    Optional.ofNullable(rs.getObject("battery", Double.class)),
-                    Optional.ofNullable(rs.getObject("battery_car", Double.class)),
-                    Optional.ofNullable(rs.getObject("fuel", Double.class)),
-                    dangersArr != null ? Arrays.stream((String[]) dangersArr.getArray()).map(Dangers::valueOf).toList() : List.of(),
-                    Optional.ofNullable(rs.getObject("airbags", Boolean.class)),
-                    Optional.ofNullable(rs.getObject("abs", Boolean.class)),
-                    Optional.ofNullable(rs.getObject("esp", Boolean.class))
-            );
-        }, userId);
-    }
-
     public VehicleData getLatestTelemetryByVehicleNo(String vehicleNo) {
         String sql = """
                 SELECT CAST(speed AS BIGINT) AS speed,
                        CAST(latitude AS DOUBLE PRECISION) AS latitude,
                        CAST(longitude AS DOUBLE PRECISION) AS longitude,
                        CAST(battery AS DOUBLE PRECISION) AS battery,
-                       CAST(battery_car AS DOUBLE PRECISION) AS battery_car,
-                       CAST(fuel AS DOUBLE PRECISION) AS fuel,
-                       dangers, diagnostics, airbags, abs, esp
+                       CAST(mileage AS BIGINT) AS mileage,
+                       CAST(steering AS DOUBLE PRECISION) AS steering,
+                       CAST(rpm AS BIGINT) AS rpm,
+                       brake_pedal, dangers, diagnostics, airbags, abs
                 FROM vehicle_telemetry
                 WHERE vehicle_no = ? ORDER BY ts DESC LIMIT 1
                 """;
@@ -283,15 +245,16 @@ public class VehicleRepository {
 
             return new VehicleData(
                     Optional.ofNullable(rs.getObject("speed", Long.class)),
-                    loc == null ? Optional.empty() : Optional.of(loc),
-                    diagnosticsArr != null ? List.of((String[]) diagnosticsArr.getArray()) : List.of(),
+                    Optional.ofNullable(rs.getObject("rpm", Long.class)),
+                    Optional.ofNullable(rs.getObject("steering", Double.class)),
                     Optional.ofNullable(rs.getObject("battery", Double.class)),
-                    Optional.ofNullable(rs.getObject("battery_car", Double.class)),
-                    Optional.ofNullable(rs.getObject("fuel", Double.class)),
-                    dangersArr != null ? Arrays.stream((String[]) dangersArr.getArray()).map(Dangers::valueOf).toList() : List.of(),
+                    Optional.ofNullable(rs.getObject("mileage", Long.class)),
+                    Optional.ofNullable(rs.getObject("brake_pedal", Boolean.class)),
                     Optional.ofNullable(rs.getObject("airbags", Boolean.class)),
                     Optional.ofNullable(rs.getObject("abs", Boolean.class)),
-                    Optional.ofNullable(rs.getObject("esp", Boolean.class))
+                    loc == null ? Optional.empty() : Optional.of(loc),
+                    diagnosticsArr != null ? List.of((String[]) diagnosticsArr.getArray()) : List.of(),
+                    dangersArr != null ? Arrays.stream((String[]) dangersArr.getArray()).map(Dangers::valueOf).toList() : List.of()
             );
         }, vehicleNo).getFirst();
     }

@@ -5,14 +5,15 @@ import java.util.Optional;
 
 public record VehicleData(
         Optional<Long> speed,
-        Optional<LocationData> location,
-        List<String> diagnostics,
+        Optional<Long> rpm,
+        Optional<Double> steering,
         Optional<Double> battery,
-        Optional<Double> batteryCar,
-        Optional<Double> fuel,
-        List<Dangers> dangers,
+        Optional<Long> mileage,
+        Optional<Boolean> brakePedal,
         Optional<Boolean> airbags,
         Optional<Boolean> abs,
-        Optional<Boolean> esp
+        Optional<LocationData> location,
+        List<String> diagnostics,
+        List<Dangers> dangers
 ) {
 }

@@ -95,15 +95,16 @@ public class VehicleService
 		var vehicleData = vehicleRepository.getLatestTelemetryByVehicleNo(vehicleId);
 		var vehicleDataClient = new VehicleDataClient(
 				vehicleData.speed(),
-				vehicleData.location(),
-				vehicleData.diagnostics(),
+				vehicleData.rpm(),
+				vehicleData.steering(),
 				vehicleData.battery(),
-				vehicleData.batteryCar(),
-				vehicleData.fuel(),
-				vehicleData.dangers(),
+				vehicleData.mileage(),
+				vehicleData.brakePedal(),
 				vehicleData.airbags(),
 				vehicleData.abs(),
-				vehicleData.esp(),
+				vehicleData.location(),
+				vehicleData.diagnostics(),
+				vehicleData.dangers(),
 				vehicleStateCache.get(vehicleId)
 		);
 
