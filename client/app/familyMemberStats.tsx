@@ -193,7 +193,6 @@ export default function FamilyMemberStatsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
-          {/* Member Header */}
           <XStack alignItems="center" gap="$3" mb="$4">
             <Circle
               size={48}
@@ -213,7 +212,6 @@ export default function FamilyMemberStatsScreen() {
             </YStack>
           </XStack>
 
-          {/* Vehicle Selector (if multiple vehicles) */}
           {vehicles.length > 1 && (
             <XStack
               jc="space-between"
@@ -280,7 +278,6 @@ export default function FamilyMemberStatsScreen() {
             </XStack>
           )}
 
-          {/* Vehicle Header */}
           <XStack alignItems="center" gap="$4" mb="$6">
             <Circle
               size={64}
@@ -303,7 +300,6 @@ export default function FamilyMemberStatsScreen() {
             </YStack>
           </XStack>
 
-          {/* Overview Stats */}
           <SizableText
             color="$textMuted"
             fontSize={12}
@@ -344,7 +340,6 @@ export default function FamilyMemberStatsScreen() {
             />
           </XStack>
 
-          {/* Vehicle Details */}
           <SizableText
             color="$textMuted"
             fontSize={12}
@@ -372,9 +367,18 @@ export default function FamilyMemberStatsScreen() {
               label="Device ID"
               value={selectedVehicle?.vehicleNo ?? 'N/A'}
             />
+            <RowSeparator />
+            <DataRow
+              label="Mileage"
+              value={vehicleData?.mileage?.toString() ?? 'N/A'}
+            />
+            <RowSeparator />
+            <DataRow
+              label="Steering"
+              value={vehicleData?.steering?.toString() ?? 'N/A'}
+            />
           </YStack>
 
-          {/* Live Diagnostics */}
           <SizableText
             color="$textMuted"
             fontSize={12}
