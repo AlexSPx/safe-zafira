@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   YStack,
   XStack,
@@ -12,33 +12,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExpandableItem } from '../../components/ExpandableItem';
 import { RowSeparator } from '../../components/RowSeparator';
 import { AlertTriangle, SearchX } from 'lucide-react-native';
+import { useVehicles } from '../../hooks/useVehicles';
 
-const diagnosisData = [
-  {
-    code: 'P0300',
-    title: 'Random/Multiple Cylinder Misfire',
-    description:
-      'This code indicates that multiple cylinders are misfiring randomly. Common causes include faulty spark plugs, ignition coils, fuel injectors, or vacuum leaks. It is recommended to check the ignition system and fuel delivery components.',
-  },
-  {
-    code: 'P0420',
-    title: 'Catalyst System Efficiency Below Threshold',
-    description:
-      'The catalytic converter is not operating at maximum efficiency. This could be caused by a failing catalytic converter, oxygen sensor malfunction, or exhaust leaks. Continued driving may result in increased emissions.',
-  },
-  {
-    code: 'P0171',
-    title: 'System Too Lean (Bank 1)',
-    description:
-      'The engine is running with too much air or not enough fuel on bank 1. Possible causes include a vacuum leak, faulty mass airflow sensor (MAF), clogged fuel filter, or weak fuel pump. Check for intake air leaks first.',
-  },
-];
+const DIAGNOSTIC_CODE_DESCRIPTION =
+  'This diagnostic code was reported by the vehicle. Refer to your vehicle manual or a qualified technician for code-specific details.';
 
 export default function DiagnosisScreen() {
   const theme = useTheme();
-  const [codes] = useState(diagnosisData);
+  const { selectedVehicle, vehicleData, fetchVehicleData, isLoading } =
+    useVehicles();
 
+  const codes = vehicleData?.diagnostics ?? [];
   const hasNoCodes = codes.length === 0;
+
+  useEffect(() => {
+    if (selectedVehicle?.vehicleNo) {
+      fetchVehicleData(selectedVehicle.vehicleNo);
+    }
+  }, [selectedVehicle?.vehicleNo, fetchVehicleData]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
@@ -74,14 +65,20 @@ export default function DiagnosisScreen() {
                 Error Codes
               </SizableText>
               <SizableText color="$textMuted" fontSize={14}>
-                {hasNoCodes
-                  ? 'No issues detected'
-                  : `${codes.length} issue${codes.length > 1 ? 's' : ''} found`}
+                {isLoading
+                  ? 'Loading...'
+                  : hasNoCodes
+                    ? 'No issues detected'
+                    : `${codes.length} issue${codes.length > 1 ? 's' : ''} found`}
               </SizableText>
             </YStack>
           </XStack>
 
-          {hasNoCodes ? (
+          {isLoading ? (
+            <SizableText color="$textMuted" fontSize={14} py="$4">
+              Loading diagnostics...
+            </SizableText>
+          ) : hasNoCodes ? (
             <YStack
               flex={1}
               justifyContent="center"
@@ -134,11 +131,10 @@ export default function DiagnosisScreen() {
                 borderRadius={20}
               >
                 {codes.map((item, index) => (
-                  <React.Fragment key={item.code}>
+                  <React.Fragment key={`${item}-${index}`}>
                     <ExpandableItem
-                      code={item.code}
-                      title={item.title}
-                      description={item.description}
+                      code={item}
+                      description={DIAGNOSTIC_CODE_DESCRIPTION}
                     />
                     {index < codes.length - 1 && <RowSeparator />}
                   </React.Fragment>
