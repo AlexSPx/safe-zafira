@@ -6,7 +6,7 @@ Boot sequence:
   2. Load JWT token from device_config.json
   3. Start OBD CAN Reader thread (or mock thread if --mock is passed)
   4. Start Server Sender thread — shapes packets to VehicleData format
-     and POSTs to /vehicles/data with Bearer auth
+    and POSTs to /vehicles/data?device=<device_id> with Bearer auth
 
 Usage:
   # Real CAN bus:
@@ -184,22 +184,31 @@ def build_vehicle_data(raw: dict, dangers: list[str]) -> dict:
     abs_active = raw.get("abs_activated")
     dtcs       = raw.get("dtcs", [])
 
+    rpm        = raw.get("rpm")
+    steering   = raw.get("steering_angle")
+    brake      = raw.get("brake_level_percent")
+    mileage    = raw.get("mileage_km")
+
     # Always pull GPS from the shared live state (not from the OBD packet)
     gps = gps_state.snapshot()
     lat = gps["latitude"]
     lon = gps["longitude"]
 
+    # Exactly matching user's requested specification:
+    # Speed: int, RPM: int, Steering: double, Battery: double, Mileage: int,
+    # Brake Pedal: bool, AIRBAGS: bool, ABS: bool, location: {x,y}, dtcs: list
     payload: dict = {
-        "speed":       int(speed) if speed is not None and speed >= 0 else None,
+        "speed":       int(speed) if speed is not None and speed >= 0 else -1,
+        "rpm":         int(rpm) if rpm is not None and rpm >= 0 else -1,
+        "steering":    float(round(steering, 1)) if steering is not None else 0.0,
+        "battery":     float(round(battery_v, 2)) if battery_v is not None else 13.5,
+        "mileage":     int(mileage) if mileage is not None and mileage >= 0 else -1,
+        "brakePedal":  bool(brake) if isinstance(brake, bool) else bool(brake > 0) if brake is not None else False,
+        "airbags":     bool(airbags) if airbags is not None else False,
+        "abs":         bool(abs_active) if abs_active is not None else False,
         "location":    {"x": lat, "y": lon} if lat is not None and lon is not None else None,
         "diagnostics": dtcs if dtcs and dtcs != ["No Errors Found"] else [],
-        "battery":     None,             # RPi internal battery — not read yet
-        "batteryCar":  round(battery_v, 2) if battery_v is not None and battery_v >= 0 else None,
-        "fuel":        round(fuel, 1)    if fuel      is not None and fuel >= 0      else None,
-        "dangers":     dangers,
-        "airbags":     bool(airbags)     if airbags   is not None else None,
-        "abs":         bool(abs_active)  if abs_active is not None else None,
-        "esp":         None,
+        "dangers":     dangers
     }
     return payload
 
@@ -224,10 +233,11 @@ def mock_can_reader_thread(data_queue: queue.Queue, stop_event: threading.Event)
         packet = {
             "timestamp":            datetime.now().isoformat(),
             "speed_kmh":            round(speed, 1),
-            "fuel_percent":         round(60.0 - t * 0.01, 1),
+            "rpm":                  2500,
+            "steering_angle":       0.0,
             "battery_v":            round(13.8 + random.uniform(-0.1, 0.1), 2),
-            "mileage_km":           94230 + round(t * 0.01, 1),
-            "brake_level_percent":  0.0,
+            "mileage_km":           191082,
+            "brake_level_percent":  False,
             "abs_activated":        False,
             "airbags_open":         False,
             "dtcs":                 ["P0420"] if not dtcs_sent else [],
@@ -268,9 +278,9 @@ def server_sender_thread(
     """
     Drains OBD packets from data_queue, analyzes dangers, shapes them into
     the server's VehicleData format, and POSTs to /vehicles/data every
-    SEND_INTERVAL seconds.  Uses JWT Bearer auth and deviceid header.
+    SEND_INTERVAL seconds.  Uses JWT Bearer auth and device query parameter.
     """
-    logger.info(f"[Sender] Server sender started → {server_url}/vehicles/data")
+    logger.info(f"[Sender] Server sender started → {server_url}/vehicles/data?device=<id>")
     if not jwt_token:
         logger.warning("[Sender] No JWT token — requests will be rejected by the server!")
 
@@ -289,9 +299,8 @@ def server_sender_thread(
         pass  # mock mode — no reader listening; that's fine
 
     headers = {
-        "Authorization": f"Bearer {jwt_token}",
-        "Content-Type":  "application/json",
-        "DeviceId":      device_id,
+        "authorization": f"Bearer {jwt_token}",
+        "content-type":  "application/json",
     }
 
     while not stop_event.is_set():
@@ -343,11 +352,20 @@ def server_sender_thread(
 
             try:
                 logger.info(f"[Sender] POSTing {len(payload)} record(s)...")
+                request_url = f"{server_url}/vehicles/data?device={device_id}"
+                auth_preview = f"Bearer {jwt_token[:12]}..." if jwt_token else "Bearer <missing>"
+                body_json = json.dumps(payload[-1], ensure_ascii=True, separators=(",", ":"))
+                logger.info(
+                    f"[Sender] Request cmd: POST {request_url} "
+                    f"Authorization='{auth_preview}' Content-Type='application/json'"
+                )
+                logger.info(f"[Sender] Request body: {body_json}")
                 # Server endpoint accepts a single VehicleData object; send the latest
                 # If the server accepts an array adjust here — currently sends last record
                 resp = requests.post(
                     f"{server_url}/vehicles/data",
                     json=payload[-1],  # send latest packet
+                    params={"device": device_id},
                     headers=headers,
                     timeout=5,
                 )
@@ -365,8 +383,19 @@ def server_sender_thread(
     # Final flush on shutdown
     if batch:
         try:
+            request_url = f"{server_url}/vehicles/data?device={device_id}"
+            auth_preview = f"Bearer {jwt_token[:12]}..." if jwt_token else "Bearer <missing>"
+            body_json = json.dumps(batch[-1], ensure_ascii=True, separators=(",", ":"))
+            logger.info(
+                f"[Sender] Request cmd: POST {request_url} "
+                f"Authorization='{auth_preview}' Content-Type='application/json'"
+            )
+            logger.info(f"[Sender] Request body: {body_json}")
             requests.post(f"{server_url}/vehicles/data",
-                          json=batch[-1], headers=headers, timeout=3)
+                          json=batch[-1],
+                          params={"device": device_id},
+                          headers=headers,
+                          timeout=3)
         except Exception:
             pass
 
