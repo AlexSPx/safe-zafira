@@ -90,7 +90,6 @@ public class VehicleController {
 		return ResponseEntity.ok(vehicles);
 	}
 
-
     @GetMapping("/api/vehicles")
     public ResponseEntity<List<Vehicle>> getVehiclesForCurrentUser(@AuthenticationPrincipal Long userId)
     {

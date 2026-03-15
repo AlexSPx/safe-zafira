@@ -70,8 +70,8 @@ public class VehicleRepository {
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setString(1, vehicleId);
-            ps.setObject(2, data.location().map(LocationData::x).orElse(null));
-            ps.setObject(3, data.location().map(LocationData::y).orElse(null));
+            ps.setObject(2, data.location().map(LocationData::y).orElse(null));
+            ps.setObject(3, data.location().map(LocationData::x).orElse(null));
             ps.setObject(4, data.speed().orElse(null));
             ps.setObject(5, data.battery().orElse(null));
             ps.setObject(6, data.steering().orElse(null));
@@ -141,8 +141,8 @@ public class VehicleRepository {
         LocationData loc = null;
         if (lat != null && log != null) {
             loc = new LocationData(
-                    lat,
-                    log
+                    log,
+                    lat
             );
         }
 
