@@ -1,13 +1,15 @@
-let jwtInMemory: string | null = null;
+import * as SecureStore from 'expo-secure-store';
+
+const JWT_STORAGE_KEY = 'safe-zafira.jwt';
 
 export async function saveJwtToSecureStore(jwt: string) {
-  jwtInMemory = jwt;
+  await SecureStore.setItemAsync(JWT_STORAGE_KEY, jwt);
 }
 
 export async function getJwtFromSecureStore() {
-  return jwtInMemory;
+  return SecureStore.getItemAsync(JWT_STORAGE_KEY);
 }
 
 export async function clearJwtFromSecureStore() {
-  jwtInMemory = null;
+  await SecureStore.deleteItemAsync(JWT_STORAGE_KEY);
 }

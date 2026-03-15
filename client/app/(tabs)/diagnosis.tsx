@@ -51,40 +51,8 @@ export default function DiagnosisScreen() {
             flexGrow: 1,
           }}
         >
-          <XStack alignItems="center" gap="$3" mb="$6">
-            <Circle
-              size={48}
-              backgroundColor="$surface"
-              borderWidth={1}
-              borderColor="$borderColor"
-            >
-              <AlertTriangle size={24} color={theme.textLight?.val} />
-            </Circle>
-            <YStack>
-              <SizableText color="$textLight" fontSize={20} fontWeight="700">
-                Error Codes
-              </SizableText>
-              <SizableText color="$textMuted" fontSize={14}>
-                {isLoading
-                  ? 'Loading...'
-                  : hasNoCodes
-                    ? 'No issues detected'
-                    : `${codes.length} issue${codes.length > 1 ? 's' : ''} found`}
-              </SizableText>
-            </YStack>
-          </XStack>
-
-          {isLoading ? (
-            <SizableText color="$textMuted" fontSize={14} py="$4">
-              Loading diagnostics...
-            </SizableText>
-          ) : hasNoCodes ? (
-            <YStack
-              flex={1}
-              justifyContent="center"
-              alignItems="center"
-              py="$10"
-            >
+          {!selectedVehicle ? (
+            <YStack flex={1} justifyContent="center" alignItems="center" py="$10">
               <Circle
                 size={100}
                 backgroundColor="$surface"
@@ -94,10 +62,62 @@ export default function DiagnosisScreen() {
               >
                 <SearchX size={48} color={theme.textMuted?.val} />
               </Circle>
-              <SizableText
-                color="$textLight"
-                fontSize={18}
-                fontWeight="600"
+              <SizableText color="$textLight" fontSize={18} fontWeight="600" mb="$2">
+                No Vehicle Selected
+              </SizableText>
+              <SizableText color="$textMuted" fontSize={14} textAlign="center" maxWidth={260}>
+                Pair and select a vehicle to view its diagnostics data.
+              </SizableText>
+            </YStack>
+          ) : (
+            <>
+              <XStack alignItems="center" gap="$3" mb="$6">
+                <Circle
+                  size={48}
+                  backgroundColor="$surface"
+                  borderWidth={1}
+                  borderColor="$borderColor"
+                >
+                  <AlertTriangle size={24} color={theme.textLight?.val} />
+                </Circle>
+                <YStack>
+                  <SizableText color="$textLight" fontSize={20} fontWeight="700">
+                    Error Codes
+                  </SizableText>
+                  <SizableText color="$textMuted" fontSize={14}>
+                    {isLoading
+                      ? 'Loading...'
+                      : hasNoCodes
+                        ? 'No issues detected'
+                        : `${codes.length} issue${codes.length > 1 ? 's' : ''} found`}
+                  </SizableText>
+                </YStack>
+              </XStack>
+
+              {isLoading ? (
+                <SizableText color="$textMuted" fontSize={14} py="$4" textAlign="center">
+                  Loading diagnostics...
+                </SizableText>
+              ) : hasNoCodes ? (
+                <YStack
+                  flex={1}
+                  justifyContent="center"
+                  alignItems="center"
+                  py="$10"
+                >
+                  <Circle
+                    size={100}
+                    backgroundColor="$surface"
+                    borderWidth={1}
+                    borderColor="$borderColor"
+                    mb="$4"
+                  >
+                    <SearchX size={48} color={theme.textMuted?.val} />
+                  </Circle>
+                  <SizableText
+                    color="$textLight"
+                    fontSize={18}
+                    fontWeight="600"
                 mb="$2"
               >
                 All Clear!
@@ -141,6 +161,8 @@ export default function DiagnosisScreen() {
                 ))}
               </YStack>
             </>
+          )}
+          </>
           )}
         </ScrollView>
       </YStack>

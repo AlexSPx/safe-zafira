@@ -1,43 +1,36 @@
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthUser } from '../services/authService';
+import { saveJwtToSecureStore, clearJwtFromSecureStore } from '../services/jwtSecureStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AuthState = {
   user: AuthUser | null;
   jwt: string | null;
 };
 
-let state: AuthState = {
-  user: null,
-  jwt: null,
-};
-
-const listeners = new Set<() => void>();
-
-function notifyListeners() {
-  listeners.forEach((listener) => listener());
+export const useAuthStore = create<AuthState>()(
+  persist<AuthState>(
+    (set, get) => ({
+      user: null,
+      jwt: null,
+    }),
+    {
+      name: 'auth',
+      storage: createJSONStorage(() => AsyncStorage)
+    }
+  )
+);
+export async function setAuthStore(user: AuthUser, jwt: string) {
+  useAuthStore.setState({ user, jwt });
+  await saveJwtToSecureStore(jwt);
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function useAuthStore(): AuthState {
-  return useSyncExternalStore(subscribe, () => state, () => state);
-}
-
-export function setAuthStore(user: AuthUser, jwt: string) {
-  state = { user, jwt };
-  notifyListeners();
-}
-
-export function clearAuthStore() {
-  state = { user: null, jwt: null };
-  notifyListeners();
+export async function clearAuthStore() {
+  useAuthStore.setState({ user: null, jwt: null });
+  await clearJwtFromSecureStore();
 }
 
 export function getAuthStore(): AuthState {
-  return state;
+  return useAuthStore.getState();
 }

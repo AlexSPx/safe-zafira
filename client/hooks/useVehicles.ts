@@ -24,6 +24,8 @@ export function useVehicles() {
       setVehicleError(
         error instanceof Error ? error.message : 'Failed to fetch vehicles',
       );
+    } finally {
+      setVehicleLoading(false);
     }
   }, []);
 
@@ -33,7 +35,6 @@ export function useVehicles() {
       const data = await vehicleService.getVehicleData(deviceId);
       console.log('Fetched vehicle data:', JSON.stringify(data, null, 2));
       setVehicleData(data);
-      setVehicleLoading(false);
     } catch (error) {
       console.log('error', error);
       setVehicleError(

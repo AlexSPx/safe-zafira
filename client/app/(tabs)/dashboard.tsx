@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
+import { YStack, XStack, SizableText, Square, Circle, useTheme } from 'tamagui';
 import { ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -200,9 +200,36 @@ export default function Dashboard() {
             </>
           ) : (
             <YStack px="$4" py="$10" ai="center">
-              <SizableText color="$textMuted" fontSize={16}>
-                {isLoading ? 'Loading vehicles...' : 'No vehicles found'}
+              <Circle
+                size={80}
+                backgroundColor="$surface"
+                borderWidth={1}
+                borderColor="$borderColor"
+                mb="$4"
+              >
+                <Plus size={32} color={theme.textMuted?.val} />
+              </Circle>
+              <SizableText color="$textLight" fontSize={18} fontWeight="600" mb="$2">
+                No Vehicles Found
               </SizableText>
+              <SizableText color="$textMuted" fontSize={14} textAlign="center" mb="$6">
+                Pair a device to start tracking your vehicle's health and statistics.
+              </SizableText>
+              <TouchableOpacity onPress={handlePair}>
+                <XStack
+                  backgroundColor="$button"
+                  px="$6"
+                  py="$3"
+                  borderRadius={24}
+                  ai="center"
+                  gap="$2"
+                >
+                  <Plus size={18} color={theme.textLight?.val} />
+                  <SizableText color="$textLight" fontSize={15} fontWeight="700">
+                    Pair New Device
+                  </SizableText>
+                </XStack>
+              </TouchableOpacity>
             </YStack>
           )}
         </ScrollView>
