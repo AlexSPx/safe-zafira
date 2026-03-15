@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, SizableText, Square, useTheme } from 'tamagui';
-import { Linking, ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { useBLEContext } from '../../context/BLEContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
@@ -10,38 +9,62 @@ import {
   Settings,
   Plus,
   History,
+  Gauge,
 } from 'lucide-react-native';
 import { QuickStat } from '../../components/QuickStat';
-import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
-
-const pairedVehicles = [
-  { id: '1', make: 'TOYOTA', model: 'Yaris' },
-  { id: '2', make: 'FORD', model: 'Mustang' },
-];
+import { useVehicles } from '../../hooks/useVehicles';
 
 export default function Dashboard() {
-  const { disconnectFromDevice } = useBLEContext();
-  const [vehicleIndex, setVehicleIndex] = useState(0);
   const theme = useTheme();
+  const {
+    vehicles,
+    selectedVehicle,
+    vehicleData,
+    isLoading,
+    error,
+    fetchVehicles,
+    fetchVehicleData,
+    selectVehicle,
+  } = useVehicles();
+  const [vehicleIndex, setVehicleIndex] = useState(0);
 
-  const vehicle = pairedVehicles[vehicleIndex];
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
+
+  useEffect(() => {
+    if (vehicles.length > 0) {
+      selectVehicle(vehicles[vehicleIndex]);
+    }
+  }, [vehicleIndex, vehicles, selectVehicle]);
+
+  useEffect(() => {
+    if (selectedVehicle?.vehicleNo) {
+      console.log('HERE');
+      fetchVehicleData(selectedVehicle.vehicleNo).then(() => {
+        console.log('Vehicle Data:', JSON.stringify(vehicleData, null, 2));
+      });
+    }
+  }, [selectedVehicle, fetchVehicleData]);
 
   const handlePair = () => {
     router.push('/pairing');
   };
 
   const nextVehicle = () => {
-    setVehicleIndex((prev) => (prev + 1) % pairedVehicles.length);
+    if (vehicles.length > 0) {
+      setVehicleIndex((prev) => (prev + 1) % vehicles.length);
+    }
   };
 
   const prevVehicle = () => {
-    setVehicleIndex(
-      (prev) => (prev - 1 + pairedVehicles.length) % pairedVehicles.length,
-    );
+    if (vehicles.length > 0) {
+      setVehicleIndex((prev) => (prev - 1 + vehicles.length) % vehicles.length);
+    }
   };
 
   const triggerEmergencyCall = () => {
-    RNImmediatePhoneCall.immediatePhoneCall('tel:0892469684');
+    Linking.openURL('tel:0892469684');
   };
 
   return (
@@ -75,88 +98,82 @@ export default function Dashboard() {
                 </SizableText>
               </XStack>
             </TouchableOpacity>
-            <TouchableOpacity onPress={triggerEmergencyCall}>
-              <XStack
-                backgroundColor="$buttonSecondary"
-                px="$4"
-                py="$2"
-                borderRadius={20}
-                ai="center"
-                gap="$2"
-              >
-                <Plus size={16} color={theme.textLight?.val} />
-                <SizableText color="$textLight" fontSize={14} fontWeight="700">
-                  Call Seish
+          </XStack>
+
+          {vehicles.length > 0 && selectedVehicle ? (
+            <>
+              <XStack jc="space-between" ai="center" px="$4" py="$4">
+                <TouchableOpacity onPress={prevVehicle}>
+                  <XStack w={40} h={40} jc="center" ai="center">
+                    <ChevronLeft size={24} color={theme.textLight?.val} />
+                  </XStack>
+                </TouchableOpacity>
+
+                <XStack
+                  f={1}
+                  jc="center"
+                  ai="center"
+                  borderWidth={1}
+                  borderColor="$borderColor"
+                  backgroundColor="$surface"
+                  borderRadius={24}
+                  mx="$4"
+                  h={44}
+                  onPress={() => router.push('/statistics')}
+                >
+                  <SizableText
+                    color="$textLight"
+                    fontSize={14}
+                    fontWeight="600"
+                    letterSpacing={3}
+                    mr="$2"
+                  >
+                    {selectedVehicle.make.toUpperCase()}
+                  </SizableText>
+                  <SizableText color="$textMuted" fontSize={14}>
+                    {selectedVehicle.model}
+                  </SizableText>
+                </XStack>
+
+                <TouchableOpacity onPress={nextVehicle}>
+                  <XStack w={40} h={40} jc="center" ai="center">
+                    <ChevronRight size={24} color={theme.textLight?.val} />
+                  </XStack>
+                </TouchableOpacity>
+              </XStack>
+
+              <YStack px="$4" mt="$2">
+                <SizableText
+                  color="$textMuted"
+                  fontSize={12}
+                  letterSpacing={1.5}
+                  mb="$3"
+                  fontWeight="600"
+                >
+                  CURRENT STATUS
                 </SizableText>
-              </XStack>
-            </TouchableOpacity>
-          </XStack>
 
-          <XStack jc="space-between" ai="center" px="$4" py="$4">
-            <TouchableOpacity onPress={prevVehicle}>
-              <XStack w={40} h={40} jc="center" ai="center">
-                <ChevronLeft size={24} color={theme.textLight?.val} />
-              </XStack>
-            </TouchableOpacity>
-
-            <XStack
-              f={1}
-              jc="center"
-              ai="center"
-              borderWidth={1}
-              borderColor="$borderColor"
-              backgroundColor="$surface"
-              borderRadius={24}
-              mx="$4"
-              h={44}
-              onPress={() => router.push('/statistics')}
-            >
-              <SizableText
-                color="$textLight"
-                fontSize={14}
-                fontWeight="600"
-                letterSpacing={3}
-                mr="$2"
-              >
-                {vehicle.make}
+                <XStack gap="$3">
+                  <QuickStat
+                    icon={<Gauge size={18} color={theme.textLight?.val} />}
+                    label="Speed"
+                    value={`${vehicleData?.speed?.toFixed(1) ?? 'N/A'}`}
+                  />
+                  <QuickStat
+                    icon={<History size={18} color={theme.textLight?.val} />}
+                    label="VIN"
+                    value={selectedVehicle.vin?.slice(-6) ?? 'N/A'}
+                  />
+                </XStack>
+              </YStack>
+            </>
+          ) : (
+            <YStack px="$4" py="$10" ai="center">
+              <SizableText color="$textMuted" fontSize={16}>
+                {isLoading ? 'Loading vehicles...' : 'No vehicles found'}
               </SizableText>
-              <SizableText color="$textMuted" fontSize={14}>
-                {vehicle.model}
-              </SizableText>
-            </XStack>
-
-            <TouchableOpacity onPress={nextVehicle}>
-              <XStack w={40} h={40} jc="center" ai="center">
-                <ChevronRight size={24} color={theme.textLight?.val} />
-              </XStack>
-            </TouchableOpacity>
-          </XStack>
-
-          <YStack px="$4" mt="$2">
-            <SizableText
-              color="$textMuted"
-              fontSize={12}
-              letterSpacing={1.5}
-              mb="$3"
-              fontWeight="600"
-            >
-              CURRENT STATUS
-            </SizableText>
-
-            <XStack gap="$3">
-              <QuickStat
-                icon={<Settings size={18} color={theme.textLight?.val} />}
-                label="Service"
-                value="In Progress"
-              />
-
-              <QuickStat
-                icon={<History size={18} color={theme.textLight?.val} />}
-                label="Last updated"
-                value="Today, 4:30 PM"
-              />
-            </XStack>
-          </YStack>
+            </YStack>
+          )}
         </ScrollView>
       </YStack>
     </SafeAreaView>

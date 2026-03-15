@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   YStack,
   XStack,
@@ -20,9 +20,28 @@ import {
   Car,
   CheckCircle2,
 } from 'lucide-react-native';
+import { useVehicles } from '../hooks/useVehicles';
 
 export default function StatisticsScreen() {
   const theme = useTheme();
+  const { selectedVehicle, vehicleData, fetchVehicleData, isLoading } =
+    useVehicles();
+
+  useEffect(() => {
+    if (selectedVehicle?.vehicleNo) {
+      fetchVehicleData(selectedVehicle.vehicleNo);
+    }
+  }, [selectedVehicle, fetchVehicleData]);
+
+  if (!selectedVehicle) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
+        <YStack flex={1} ai="center" jc="center">
+          <SizableText color="$textMuted">No vehicle selected</SizableText>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background?.val }}>
@@ -46,19 +65,19 @@ export default function StatisticsScreen() {
               backgroundColor="$surface"
               borderWidth={1}
               borderColor="$borderColor"
-              onPress={() => router.push('/(tabs)/dashboard')}
+              onPress={() => router.push('/diagnosis')}
             >
               <Car size={32} color={theme.textLight?.val} />
             </Circle>
             <YStack>
               <XStack ai="center" gap="$2">
                 <SizableText color="$textLight" fontSize={24} fontWeight="700">
-                  Toyota Corolla
+                  {selectedVehicle.make} {selectedVehicle.model}
                 </SizableText>
                 <CheckCircle2 size={18} color="#4ade80" />
               </XStack>
               <SizableText color="$textMuted" fontSize={14}>
-                Connected • ZAFIRA-NODE
+                {selectedVehicle.vehicleNo}
               </SizableText>
             </YStack>
           </XStack>
@@ -76,24 +95,30 @@ export default function StatisticsScreen() {
             <QuickStat
               icon={<Heart size={18} color={theme.textLight?.val} />}
               label="Health"
-              value="100%"
+              value={vehicleData?.diagnostics?.length === 0 ? '100%' : 'Check'}
             />
             <QuickStat
               icon={<BatteryCharging size={18} color={theme.textLight?.val} />}
               label="Battery"
-              value="12.4V"
+              value={
+                vehicleData?.batteryCar
+                  ? `${vehicleData.batteryCar.toFixed(1)}V`
+                  : 'N/A'
+              }
             />
           </XStack>
           <XStack gap="$3" mb="$6">
             <QuickStat
               icon={<Fuel size={18} color={theme.textLight?.val} />}
               label="Fuel Level"
-              value="84%"
+              value={
+                vehicleData?.fuel ? `${vehicleData.fuel.toFixed(0)}%` : 'N/A'
+              }
             />
             <QuickStat
               icon={<Thermometer size={18} color={theme.textLight?.val} />}
-              label="Coolant"
-              value="190°F"
+              label="Speed"
+              value={vehicleData?.speed ? `${vehicleData.speed} km/h` : 'N/A'}
             />
           </XStack>
 
@@ -114,13 +139,13 @@ export default function StatisticsScreen() {
             borderRadius={20}
             mb="$6"
           >
-            <DataRow label="Make" value="Toyota" />
+            <DataRow label="Make" value={selectedVehicle.make} />
             <RowSeparator />
-            <DataRow label="Model" value="Corolla LE" />
+            <DataRow label="Model" value={selectedVehicle.model} />
             <RowSeparator />
-            <DataRow label="Year" value="2020" />
+            <DataRow label="VIN" value={selectedVehicle.vin} />
             <RowSeparator />
-            <DataRow label="VIN" value="1NXBR1234567890" />
+            <DataRow label="Device ID" value={selectedVehicle.vehicleNo} />
           </YStack>
 
           <SizableText
@@ -139,11 +164,34 @@ export default function StatisticsScreen() {
             paddingHorizontal="$4"
             borderRadius={20}
           >
-            <DataRow label="Mileage" value="45,230 mi" />
+            <DataRow
+              label="ABS"
+              value={vehicleData?.abs ? 'Active' : 'OK'}
+              highlight={!vehicleData?.abs}
+            />
             <RowSeparator />
-            <DataRow label="Engine RPM" value="Idle (800)" />
+            <DataRow
+              label="ESP"
+              value={vehicleData?.esp ? 'Active' : 'OK'}
+              highlight={!vehicleData?.esp}
+            />
             <RowSeparator />
-            <DataRow label="System Status" value="No Codes" highlight={true} />
+            <DataRow
+              label="Airbags"
+              value={vehicleData?.airbags ? 'Deployed!' : 'OK'}
+              highlight={!vehicleData?.airbags}
+              error={vehicleData?.airbags ?? false}
+            />
+            <RowSeparator />
+            <DataRow
+              label="Error Codes"
+              value={
+                vehicleData?.diagnostics?.length === 0
+                  ? 'None'
+                  : `${vehicleData?.diagnostics?.length} codes`
+              }
+              highlight={vehicleData?.diagnostics?.length === 0}
+            />
           </YStack>
         </ScrollView>
       </YStack>
