@@ -18,14 +18,11 @@ import com.zafira.vehicle.model.VehicleInitiationRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @Slf4j
 @AllArgsConstructor
 public class VehicleController {
-
-    private static final String VEHICLE_HEADER_NAME = "Device";
 
     private final VehicleService service;
     private final SpeedLimitService speedLimitService;
@@ -45,30 +42,27 @@ public class VehicleController {
     @PostMapping("/api/vehicles/data")
     public ResponseEntity<Void> receiveData(@AuthenticationPrincipal Long userId,
                                             @RequestBody VehicleData body,
-                                            @RequestHeader Map<String, String> headers) {
-        String vehicleId = headers.get(VEHICLE_HEADER_NAME);
-        if (userId == null || vehicleId == null) {
+                                            @RequestParam String device) {
+        if (userId == null || device == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.debug("RECEIVING data for vehicle [{}]", vehicleId);
+        log.debug("RECEIVING data for vehicle [{}]", device);
         log.debug("Vehicle [{}]", body);
-        service.addVehicleData(userId, vehicleId, body);
+        service.addVehicleData(userId, device, body);
 
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
     @GetMapping("/api/vehicles/speed-limit")
     public ResponseEntity<Integer> getSpeedLimit(@AuthenticationPrincipal Long userId,
-                                                 @RequestHeader Map<String, String> headers) {
+                                                 @RequestParam String device) {
 
-
-        String vehicleId = headers.get(VEHICLE_HEADER_NAME);
-        if (userId == null || vehicleId == null) {
+        if (userId == null || device == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var location = service.getLastLocationDataForDevice(vehicleId);
+        var location = service.getLastLocationDataForDevice(device);
         if (location.isEmpty()) {
             return ResponseEntity.status(HttpStatus.OK).body(null);
         }
@@ -80,13 +74,12 @@ public class VehicleController {
 
     @GetMapping("/api/vehicles/data")
     public ResponseEntity<VehicleDataClient> getLatestVehicleData(@AuthenticationPrincipal Long userId,
-                                                                  @RequestHeader Map<String, String> headers) {
-        String vehicleId = headers.get(VEHICLE_HEADER_NAME);
-        if (userId == null || vehicleId == null) {
+                                                                  @RequestParam String device) {
+        if (userId == null || device == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        return ResponseEntity.status(HttpStatus.OK).body(service.getCurrentClientVehicleData(vehicleId).orElse(null));
+        return ResponseEntity.status(HttpStatus.OK).body(service.getCurrentClientVehicleData(device).orElse(null));
     }
 
 	@GetMapping("/api/vehicles/family/{memberId}")
