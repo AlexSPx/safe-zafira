@@ -5,15 +5,10 @@ import { Plus, Minus } from 'lucide-react-native';
 
 type ExpandableItemProps = {
   code: string;
-  title: string;
   description: string;
 };
 
-export const ExpandableItem = ({
-  code,
-  title,
-  description,
-}: ExpandableItemProps) => {
+export const ExpandableItem = ({ code, description }: ExpandableItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const theme = useTheme();
 
@@ -39,14 +34,6 @@ export const ExpandableItem = ({
                 {code}
               </SizableText>
             </XStack>
-            <SizableText
-              color="$textLight"
-              fontSize={14}
-              fontWeight="500"
-              flex={1}
-            >
-              {title}
-            </SizableText>
           </XStack>
           <XStack
             width={28}
