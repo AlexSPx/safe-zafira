@@ -162,8 +162,8 @@ public class VehicleRepository {
                 """;
 
         List<LocationData> results = jdbcTemplate.query(sql, (rs, _) -> new LocationData(
-                rs.getDouble("latitude"),
-                rs.getDouble("longitude")
+                rs.getDouble("longitude"),
+                rs.getDouble("latitude")
         ), userId);
         return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
     }
