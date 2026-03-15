@@ -62,7 +62,6 @@ class VehicleApiService {
 
   getVehicleData(vehicleId: string): Promise<VehicleDataClient | null> {
     const query = new URLSearchParams({
-      vehicleId,
       device: vehicleId,
     }).toString();
     return apiClient.get<VehicleDataClient | null>(
@@ -78,7 +77,6 @@ class VehicleApiService {
 
   getSpeedLimit(vehicleId: string): Promise<number | null> {
     const query = new URLSearchParams({
-      vehicleId,
       device: vehicleId,
     }).toString();
     return apiClient.get<number | null>(`/api/vehicles/speed-limit?${query}`);

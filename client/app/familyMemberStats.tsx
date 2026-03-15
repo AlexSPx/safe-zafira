@@ -7,7 +7,7 @@ import {
   Circle,
   useTheme,
 } from 'tamagui';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { QuickStat } from '../components/QuickStat';
@@ -194,6 +194,12 @@ export default function FamilyMemberStatsScreen() {
           contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
           <XStack alignItems="center" gap="$3" mb="$4">
+            <TouchableOpacity onPress={() => router.back()}>
+              <XStack w={40} h={40} jc="center" ai="center">
+                <ChevronLeft size={24} color={theme.textLight?.val} />
+              </XStack>
+            </TouchableOpacity>
+
             <Circle
               size={48}
               backgroundColor="$primarySoft"

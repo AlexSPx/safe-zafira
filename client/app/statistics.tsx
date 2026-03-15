@@ -19,8 +19,10 @@ import {
   CheckCircle2,
   Gauge,
   CircleGauge,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { useVehicles } from '../hooks/useVehicles';
+import { TouchableOpacity } from 'react-native';
 
 export default function StatisticsScreen() {
   const theme = useTheme();
@@ -53,6 +55,12 @@ export default function StatisticsScreen() {
           contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
         >
           <XStack alignItems="center" gap="$4" mb="$6">
+            <TouchableOpacity onPress={() => router.back()}>
+              <XStack w={40} h={40} jc="center" ai="center">
+                <ChevronLeft size={24} color={theme.textLight?.val} />
+              </XStack>
+            </TouchableOpacity>
+
             <Circle
               size={64}
               backgroundColor="$surface"
@@ -105,9 +113,7 @@ export default function StatisticsScreen() {
             <QuickStat
               icon={<CircleGauge size={18} color={theme.textLight?.val} />}
               label="RPM"
-              value={
-                vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}%` : 'N/A'
-              }
+              value={vehicleData?.rpm ? `${vehicleData.rpm.toFixed(0)}` : 'N/A'}
             />
             <QuickStat
               icon={<Gauge size={18} color={theme.textLight?.val} />}
